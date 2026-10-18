@@ -241,7 +241,7 @@ tests/              pytest suite
 
 ## Author
 
-Kamal Mehta, ML engineer working on reinforcement learning for train control.
+Kamal Mehta, ML engineer. Built reinforcement learning for train control at Progress Rail, 2022–2026.
 [kamal-mehta.com](https://kamal-mehta.com)
 
 ## License
