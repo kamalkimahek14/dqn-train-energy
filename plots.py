@@ -114,15 +114,108 @@ def animate_episode(rollout_path, backend, out):
     print("wrote", out, f"({os.path.getsize(out) / 1e6:.2f} MB)")
 
 
+SLACK = {"dqn": "#d95926", "dqn_filter": "#3987e5", "draft": "#9085e9", "buff": "#199e70", "muted": "#8b949e"}
+
+
+def slack_trace(path, out):
+    """Speed and coupler force along one test track, DQN without and with the slack filter."""
+    with open(path) as f:
+        tr = json.load(f)
+    thr = tr["event_force_kn"]
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 5.6), sharex=True, gridspec_kw={"height_ratios": [1, 2.2]})
+    edges = np.append(tr["limit_x"], tr["length"]) / 1000
+    ax1.stairs(np.array(tr["limit"]) * 3.6, edges, baseline=None, color=COLOR["limit"], lw=1.4, label="speed limit")
+    runs = {}
+    for key, label in (("dqn", "DQN"), ("dqn_filter", "DQN + slack filter")):
+        run = tr[key]
+        ax1.plot(np.array(run["x"]) / 1000, np.array(run["v"]) * 3.6, color=SLACK[key], lw=1.6, label=label)
+        t, x, draft, buff = (np.array(c) for c in zip(*run["force"]))
+        runs[key] = (x / 1000, draft / 1e3, buff / 1e3)
+        n = sum(1 for i in range(0, len(t), 10) if max(draft[i:i + 10].max(), buff[i:i + 10].max()) > thr * 1e3)
+        signed = np.where(draft >= buff, draft, -buff) / 1e3  # the larger of the two, per second
+        ax2.plot(x / 1000, signed, color=SLACK[key], lw=1.3,
+                 label=f"{label}: {n} decision{'s' * (n != 1)} over the line")
+    ax1.set(ylabel="speed (km/h)", ylim=(0, max(tr["limit"]) * 3.6 + 15))
+    ax1.legend(fontsize=8, loc="lower center", ncol=3)
+    ax1.grid(alpha=0.6)
+
+    for sign in (1, -1):
+        ax2.axhline(sign * thr, ls="--", lw=1.2, color=SLACK["muted"])
+    ax2.text(0.05, thr + 12, f"event line: {thr:.0f} kN draft", color=SLACK["muted"], fontsize=8)
+    ax2.text(0.05, -thr - 32, f"event line: {thr:.0f} kN buff", color=SLACK["muted"], fontsize=8)
+    # Mark each stretch where the plain DQN crossed the line and the filtered run, at the same place, did not.
+    xp, dp, bp = runs["dqn"]
+    xf, df, bf = runs["dqn_filter"]
+    over = np.flatnonzero(np.maximum(dp, bp) > thr)
+    groups = np.split(over, np.flatnonzero(np.diff(xp[over]) > 0.3) + 1) if len(over) else []
+    for g in groups:
+        i = g[np.argmax(np.maximum(dp[g], bp[g]))]
+        near = np.abs(xf - xp[i]) < 0.2
+        if near.any() and np.maximum(df[near], bf[near]).max() <= thr:
+            y = dp[i] if dp[i] >= bp[i] else -bp[i]
+            ax2.annotate("prevented", (xp[i], y), xytext=(xp[i] + 0.3, y + np.sign(y) * 45), fontsize=8,
+                         color=FG, arrowprops={"arrowstyle": "->", "color": FG, "lw": 0.8})
+    ax2.set(ylabel="peak coupler force (kN)\n+ draft, − buff", xlabel="position of the lead locomotive (km)",
+            xlim=(0, tr["length"] / 1000), ylim=(-thr - 140, max(dp.max(), df.max(), thr) + 90))
+    ax2.legend(fontsize=8, loc="lower center")
+    ax2.grid(alpha=0.6)
+    fig.suptitle(f"Test track {tr['track']}, PyTorch DQN seed {tr['training_seed']} on the coupled train",
+                 fontsize=10, x=0.01, ha="left")
+    fig.tight_layout()
+    fig.savefig(out, dpi=120)
+    print("wrote", out)
+
+
+def slack_events(results, out):
+    """Slack events per trip on the 50 test tracks: baseline, then each DQN without and with the filter."""
+    bars = []
+    for backend in ("torch", "tf"):
+        path = os.path.join(results, f"slack_ab_{backend}.json")
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            ab = json.load(f)
+        if not bars:
+            bars.append(("Baseline", ab["baseline"]["draft_events"]["mean"], ab["baseline"]["buff_events"]["mean"]))
+        seeds = list(ab["per_seed"].values())
+        for key, label in (("dqn", f"DQN\n{NAME[backend]}"), ("dqn_filter", f"DQN {NAME[backend]}\n+ slack filter")):
+            bars.append((label, np.mean([s[key]["draft_events"]["mean"] for s in seeds]),
+                         np.mean([s[key]["buff_events"]["mean"] for s in seeds])))
+    labels, draft, buff = zip(*bars)
+    x = np.arange(len(bars))
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(x, draft, width=0.6, color=SLACK["draft"], label="draft (stretch)", edgecolor=PANEL, linewidth=2)
+    ax.bar(x, buff, width=0.6, bottom=draft, color=SLACK["buff"], label="buff (compression)",
+           edgecolor=PANEL, linewidth=2)
+    for xi, d, b in zip(x, draft, buff):
+        ax.text(xi, d + b + 0.06, f"{d + b:.2f}", ha="center", fontsize=9, color=FG)
+    ax.set_xticks(x, labels, fontsize=8)
+    ax.set(ylabel="slack events per trip", ylim=(0, max(np.add(draft, buff)) * 1.2 + 0.1))
+    ax.set_title("Decisions with a coupler past the event line, mean over 50 test tracks and 2 DQN seeds",
+                 fontsize=9, loc="left")
+    ax.grid(axis="y", alpha=0.6)
+    ax.set_axisbelow(True)
+    ax.legend(fontsize=8, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(out, dpi=120)
+    print("wrote", out)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--backend", choices=["torch", "tf"], default="torch")
     p.add_argument("--runs", default="runs")
     p.add_argument("--results", default="results")
     p.add_argument("--assets", default="assets")
+    p.add_argument("--slack", action="store_true", help="only the slack-predictor figures")
     args = p.parse_args()
     os.makedirs(args.assets, exist_ok=True)
     dark_style()
+    if args.slack:
+        slack_trace(os.path.join(args.results, f"slack_trace_{args.backend}.json"),
+                    os.path.join(args.assets, "slack_trace.png"))
+        slack_events(args.results, os.path.join(args.assets, "slack_events.png"))
+        return
     learning_curves(args.runs, args.results, os.path.join(args.assets, "learning_curves.png"))
     rollout = os.path.join(args.results, f"rollout_{args.backend}.json")
     if os.path.exists(rollout):

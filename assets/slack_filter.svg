@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" width="900" height="440" role="img" aria-labelledby="title desc">
+  <title id="title">Where the slack predictor sits in the decision loop</title>
+  <desc id="desc">The coupled train sends its state to the DQN, which scores all 12 actions, and a window of its last four decisions to the slack predictor, which gives each of the 12 actions a risk of a slack event. The filter takes the highest-Q action whose risk is under the threshold, or the lowest-risk action if all are over it, and sends that action back to the train.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c9d1d9"/>
+    </marker>
+    <style>
+      .box   { fill: #161b22; stroke-width: 2; }
+      .head  { font: 600 15px "Segoe UI", Helvetica, Arial, sans-serif; fill: #e6edf3; text-anchor: middle; }
+      .body  { font: 13px "Segoe UI", Helvetica, Arial, sans-serif; fill: #c9d1d9; text-anchor: middle; }
+      .math  { font: 13px Consolas, "DejaVu Sans Mono", monospace; fill: #e6edf3; text-anchor: middle; }
+      .label { font: 12px "Segoe UI", Helvetica, Arial, sans-serif; fill: #8b949e; }
+      .flow  { stroke: #c9d1d9; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="898" height="438" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <text x="24" y="36" style="font: 600 17px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #e6edf3;">The slack predictor as a second opinion on every decision</text>
+
+  <!-- Coupled train -->
+  <rect class="box" x="30" y="66" width="200" height="284" rx="10" stroke="#f59e0b"/>
+  <text class="head" x="130" y="94">Coupled train</text>
+  <text class="body" x="130" y="118">(CoupledTrainEnv)</text>
+  <text class="body" x="130" y="150">4 car groups</text>
+  <text class="body" x="130" y="170">3 couplers:</text>
+  <text class="body" x="130" y="190">spring, damper,</text>
+  <text class="body" x="130" y="210">±5 cm of slack</text>
+  <text class="body" x="130" y="242">brakes reach each</text>
+  <text class="body" x="130" y="262">group 2 s later</text>
+  <text class="body" x="130" y="294">event: a coupler</text>
+  <text class="body" x="130" y="314">past ±300 kN</text>
+
+  <!-- DQN -->
+  <rect class="box" x="350" y="66" width="220" height="124" rx="10" stroke="#22d3ee"/>
+  <text class="head" x="460" y="94">DQN (unchanged)</text>
+  <text class="body" x="460" y="120">trained on the point-mass train</text>
+  <text class="math" x="460" y="146">Q(s, a) for all 12 a</text>
+  <text class="body" x="460" y="172">eco-driving: fuel, time, limit</text>
+
+  <!-- Slack predictor -->
+  <rect class="box" x="350" y="206" width="220" height="144" rx="10" stroke="#a78bfa"/>
+  <text class="head" x="460" y="232">Slack predictor</text>
+  <text class="body" x="460" y="256">4 Dense layers</text>
+  <text class="body" x="460" y="276">82 → 64 → 64 → 32 → 1</text>
+  <text class="math" x="460" y="302">risk(a): P(event in 10 s)</text>
+  <text class="body" x="460" y="328">trained offline, supervised</text>
+
+  <!-- Inputs -->
+  <path class="flow" d="M230 128 H346"/>
+  <text class="label" x="288" y="120" text-anchor="middle">state s</text>
+  <path class="flow" d="M230 286 H346"/>
+  <text class="label" x="288" y="270" text-anchor="middle">last 4 decisions:</text>
+  <text class="label" x="288" y="306" text-anchor="middle">speed, grades,</text>
+  <text class="label" x="288" y="322" text-anchor="middle">coupler forces</text>
+
+  <!-- Filter -->
+  <rect class="box" x="650" y="66" width="220" height="284" rx="10" stroke="#34d399"/>
+  <text class="head" x="760" y="94">Filter</text>
+  <text class="body" x="760" y="130">keep the actions with</text>
+  <text class="math" x="760" y="154">risk(a) &lt; τ</text>
+  <text class="body" x="760" y="186">take the one with</text>
+  <text class="body" x="760" y="206">the highest Q</text>
+  <text class="body" x="760" y="246">if none is under τ:</text>
+  <text class="body" x="760" y="266">the lowest-risk action</text>
+  <text class="body" x="760" y="306">τ is fixed on validation</text>
+  <text class="body" x="760" y="326">tracks only</text>
+
+  <path class="flow" d="M570 128 H646"/>
+  <text class="label" x="608" y="120" text-anchor="middle">12 Q-values</text>
+  <path class="flow" d="M570 286 H646"/>
+  <text class="label" x="608" y="278" text-anchor="middle">12 risks</text>
+
+  <!-- Action back to the train -->
+  <path class="flow" d="M760 350 V384 H130 V354"/>
+  <text class="label" x="445" y="376" text-anchor="middle">action a: throttle notch 0–8 or brake 1–3</text>
+
+  <text class="label" x="450" y="420" text-anchor="middle">SlackFilter (ecodrive/slack.py) wraps the agent's greedy() call; the agent code is not changed.</text>
+</svg>
