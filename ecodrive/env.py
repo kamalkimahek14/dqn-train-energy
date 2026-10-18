@@ -137,23 +137,7 @@ class TrainEnv(gym.Env):
         assert self.action_space.contains(action), action
         throttle, brake = action_to_control(int(action))
         u = throttle - brake
-        dt = DT / SUBSTEPS
-        fuel_step, over = 0.0, 0.0
-        arrived = False
-
-        for _ in range(SUBSTEPS):
-            f_trac = throttle * tractive_force_available(self.v)
-            f_net = f_trac - brake * B_MAX - resistance(self.v) - MASS * G * self.track.grade_at(self.x)
-            v_new = max(0.0, self.v + f_net / MASS * dt)  # semi-implicit Euler; a stopped train does not roll back
-            v_avg = 0.5 * (self.v + v_new)
-            fuel_step += SFC * f_trac * v_avg * dt / 3.6e6  # J -> kWh -> litres
-            self.x += v_avg * dt
-            self.v = v_new
-            self.t += dt
-            over = max(over, self.v - self.track.limit_at(min(self.x, self.track.length)))
-            if self.x >= self.track.length:
-                arrived = True
-                break
+        fuel_step, over, arrived = self._advance(throttle, brake)
 
         self.fuel += fuel_step
         if over > 0.0:
@@ -177,6 +161,24 @@ class TrainEnv(gym.Env):
         return self._obs(), float(reward), terminated, False, self._info(arrived)
 
     # -- Helpers --------------------------------------------------------------------------------
+    def _advance(self, throttle: float, brake: float) -> tuple[float, float, bool]:
+        """Integrate one decision step at 1 s. Returns (fuel used, worst excess over the limit, arrived)."""
+        dt = DT / SUBSTEPS
+        fuel_step, over = 0.0, 0.0
+        for _ in range(SUBSTEPS):
+            f_trac = throttle * tractive_force_available(self.v)
+            f_net = f_trac - brake * B_MAX - resistance(self.v) - MASS * G * self.track.grade_at(self.x)
+            v_new = max(0.0, self.v + f_net / MASS * dt)  # semi-implicit Euler; a stopped train does not roll back
+            v_avg = 0.5 * (self.v + v_new)
+            fuel_step += SFC * f_trac * v_avg * dt / 3.6e6  # J -> kWh -> litres
+            self.x += v_avg * dt
+            self.v = v_new
+            self.t += dt
+            over = max(over, self.v - self.track.limit_at(min(self.x, self.track.length)))
+            if self.x >= self.track.length:
+                return fuel_step, over, True
+        return fuel_step, over, False
+
     def _obs(self) -> np.ndarray:
         tr = self.track
         x = min(self.x, tr.length)
