@@ -7,8 +7,8 @@ config and training loop, so the two files can be read side by side.
 
 On 50 held-out test tracks, averaged over two training seeds, the PyTorch agent used **31.5 % less
 fuel** than a rule-based driver that holds the speed limit and arrived on time on **99 %** of the
-tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. Neither is perfect on the
-speed limit yet; the numbers and the history are below.
+tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. The next step is
+to make the speed limit a hard constraint; the numbers and the history are below.
 
 ![One test episode: speed against the limit, and the throttle notch per decision](assets/episode.gif)
 
@@ -93,13 +93,13 @@ Both agents found the same policy: accelerate less hard, cruise below the limit,
 limits, and spend some of the timetable slack. They use about 8 % more trip time than the baseline
 (1.30 against 1.20 × free-flow), still well inside the window, and change notch less often.
 
-What is not solved yet is the speed limit. The PyTorch agent goes over on 0.31 decisions per trip
+The speed limit is the next target. The PyTorch agent goes over on 0.31 decisions per trip
 on average. The TensorFlow agent gets to 0.10, but one of its seeds arrives late on 5 of the 50
 tracks. The baseline never does either, because it plans its braking with the train's physics; the
 agent has to learn that from the reward alone.
 
-The track in the GIF is a typical one (28 % saving, on time, no overshoot). The last 1.5 km is the
-weak part of most episodes: the agent switches quickly between brake 1 and low notches while it lines
+The track in the GIF is a typical one (28 % saving, on time, no overshoot). The last 1.5 km is where
+the most room is left: the agent switches quickly between brake 1 and low notches while it lines
 up the final limit and the arrival.
 
 ### How the results developed
