@@ -1,6 +1,27 @@
 {
   "episodes": 50,
-  "return_mean": 345.44,
-  "return_std": 88.74709234673551,
-  "return_min": 230.0
+  "per_seed": {
+    "0": {
+      "return_mean": 304.82,
+      "return_std": 52.499405710922105,
+      "return_min": 252.0
+    }
+  },
+  "across_seeds": {
+    "return_mean": {
+      "mean": 304.82,
+      "min": 304.82,
+      "max": 304.82
+    },
+    "return_std": {
+      "mean": 52.499405710922105,
+      "min": 52.499405710922105,
+      "max": 52.499405710922105
+    },
+    "return_min": {
+      "mean": 252.0,
+      "min": 252.0,
+      "max": 252.0
+    }
+  }
 }

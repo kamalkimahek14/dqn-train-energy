@@ -5,14 +5,15 @@ time window, stay under the speed limit and burn as little fuel as it can. I wro
 once in PyTorch and once in TensorFlow/Keras. Both sit on the same environment, replay buffer,
 config and training loop, so the two files can be read side by side.
 
-On 50 held-out test tracks the PyTorch agent used **37.6 % less fuel** than a rule-based driver that
-holds the speed limit (30.7 L against 49.2 L). That saving is not free yet: the agent arrived on time
-on 62 % of the tracks, against 100 % for the baseline. The details are below.
+On 50 held-out test tracks, averaged over two training seeds, the PyTorch agent used **31.5 % less
+fuel** than a rule-based driver that holds the speed limit and arrived on time on **99 %** of the
+tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. Neither is perfect on the
+speed limit yet; the numbers and the history are below.
 
 ![One test episode: speed against the limit, and the throttle notch per decision](assets/episode.gif)
 
-*Test track 10000, PyTorch agent. Top: speed against the limit (red), DQN in cyan, the baseline in
-grey. Bottom: the notch or brake level picked at each 10 s decision.*
+*Test track 10003, PyTorch agent (seed 0). Top: speed against the limit (red), DQN in cyan, the
+baseline in grey. Bottom: the notch or brake level picked at each 10 s decision.*
 
 ## Why this problem
 
@@ -37,14 +38,15 @@ runs at 1 s inside that step. A trip takes about 55–70 decisions.
 
 | | |
 |---|---|
-| **State** (10 floats) | speed; current limit; next limit and the distance to it; grade here; mean grade over the next 1 km; distance left; elapsed time; average speed still needed to arrive on time; last control level |
+| **State** (11 floats) | speed; current limit; next limit and the distance to it; grade here; mean grade over the next 1 km; distance left; elapsed time; average speed still needed; schedule slack; last control level |
 | **Actions** (12) | throttle notch 0–8 (0 = coast) or brake level 1–3 |
-| **Reward** per decision | −0.1 per litre of fuel, −0.5 per m/s over the limit, −0.05 × the change in control level (full brake = −1, full notch = +1) |
-| **At arrival** | −5 per minute outside the window [1.05, 1.40] × free-flow time |
-| **Hard stop** | at 1.70 × free-flow time: −10 × the share of track still ahead, plus the lateness term |
+| **Reward** per decision | −0.1 per litre of fuel, −5 per m/s over the limit, −0.05 × the change in control level (full brake = −1, full notch = +1) |
+| **At arrival** | −5 per minute outside the window [1.05, 1.40] × free-flow time, and −10 more if late at all |
+| **Hard stop** | at 1.70 × free-flow time: −10 × the share of track still ahead, plus the lateness terms |
 
-Free-flow time is the trip at exactly the limit everywhere. No real run gets there, because the train
-has to accelerate from a standstill.
+Free-flow time is the trip at exactly the limit everywhere. Schedule slack is the time left before
+the deadline minus the free-flow time of the track still ahead: once it goes negative, the train can
+no longer make it.
 
 The baseline (`ecodrive/baseline.py`) is a cruise control that knows the train's physics. It aims
 0.5 m/s under the limit, picks the notch that balances resistance and grade, and starts braking two
@@ -58,103 +60,131 @@ limit violations, at 1.20 × free-flow time on average.
 Plain DQN with the usual stabilisers:
 
 - **Experience replay**: a 100k ring buffer in numpy (`ecodrive/replay.py`), uniform batches of 64.
-- **Target network**: a frozen copy, hard-synced every 1,000 environment steps.
+- **Target network**: a frozen copy, hard-synced every 2,000 environment steps.
 - **Double DQN**: the online network picks the next action and the target network scores it. This
   takes out most of the max-operator overestimation.
 - **Huber loss** (δ = 1) and a global gradient-norm clip of 10.
-- **ε-greedy**, linear from 1.0 to 0.05 over 60k steps.
+- **ε-greedy**, linear from 1.0 to 0.05 over 100k steps.
 - **One seed** for tracks, exploration, replay sampling and weight init.
 
-One gradient step every two decisions, Adam at 5e-4, an MLP 10 → 128 → 128 → 12, 150k environment
-steps (about 2,000 trips). Every 10k steps the greedy policy plays 10 validation tracks (seeds
-1000–1009) and the best weights are kept. Test tracks start at seed 10000 and are only touched by
-`evaluate.py`.
+Both backends use the same settings: Adam at 5e-4 (ε = 1e-7), an MLP 11 → 128 → 128 → 12 with Glorot
+initialisation, one gradient step every two decisions, 300k environment steps (about 4,000 trips).
+Every 10k steps the greedy policy plays 30 validation tracks (seeds 1000–1029) and the best weights
+are kept. Test tracks start at seed 10000 and only `evaluate.py` touches them.
 
 ## Results
 
-All numbers come from `results/*.json`, produced by `evaluate.py` on test seeds 10000–10049.
+`evaluate.py --seeds 0 1` on test seeds 10000–10049. Each cell is the mean over two training seeds,
+with the per-seed range in brackets. Raw numbers are in `results/eval_train_*.json`.
 
 ![Learning curves](assets/learning_curves.png)
 
-| 50 test tracks | DQN, PyTorch | DQN, TensorFlow | Baseline |
+| 50 test tracks, 2 seeds | DQN, PyTorch | DQN, TensorFlow | Baseline |
 |---|---|---|---|
-| Fuel (L) | **30.7** ± 7.0 | 40.6 ± 6.1 | 49.2 ± 6.0 |
-| Fuel saving vs baseline | **37.6 %** | 17.5 % | |
-| Tracks where DQN used less fuel | 50 / 50 | 48 / 50 | |
-| Trip time (s) | 659 ± 48 | 694 ± 62 | 562 ± 37 |
-| Trip time / free-flow time | 1.40 ± 0.07 | 1.48 ± 0.13 | 1.20 ± 0.04 |
-| On time | 62 % | 36 % | **100 %** |
-| Decisions over the limit, per trip | 0.40 | 2.28 | **0** |
-| Control changes, per trip | **20.9** | 25.6 | 30.3 |
-| Episode return | **−4.87** ± 2.22 | −10.29 ± 5.28 | −5.92 ± 0.60 |
+| Fuel (L) | **33.7** [32.0, 35.4] | 37.0 [37.0, 37.1] | 49.2 |
+| Fuel saving vs baseline | **31.5 %** [28.1, 35.0] | 24.8 % [24.7, 24.9] | |
+| On time | **99 %** [98, 100] | 95 % [90, 100] | 100 % |
+| Decisions over the limit, per trip | 0.31 [0.16, 0.46] | **0.10** [0.04, 0.16] | 0 |
+| Trip time / free-flow time | 1.30 [1.29, 1.32] | 1.30 [1.27, 1.32] | 1.20 |
+| Control changes, per trip | **24.2** | 26.9 | 30.3 |
+| Episode return | −5.24 [−6.38, −4.10] | **−4.99** [−5.50, −4.48] | −5.92 |
 
-The PyTorch agent beats the baseline on the reward it was trained on, and by a wide margin on fuel.
-It found the obvious lever: cruise slower and use the timetable slack. It also coasts more and changes
-notch a third less often. The problem is precision. It aims for the late edge of the window, and with
-10 s decisions it lands past it on about four tracks in ten. The overshoots of the limit are small
-(the reward charges by the m/s), but a real driver would get none.
+Both agents found the same policy: accelerate less hard, cruise below the limit, coast into lower
+limits, and spend some of the timetable slack. They use about 8 % more trip time than the baseline
+(1.30 against 1.20 × free-flow), still well inside the window, and change notch less often.
 
-The TensorFlow agent learned the same shape of policy and does not beat the baseline overall. Its
-training curve tracks the PyTorch one closely. Its validation score peaked at step 100k and then
-wandered, so model selection kept that early checkpoint. With only 10 validation tracks the score is
-noisy, and I think that choice, more than the framework, explains most of the gap. A second seed for
-each backend would settle it; I have not run one yet.
+What is not solved yet is the speed limit. The PyTorch agent goes over on 0.31 decisions per trip
+on average. The TensorFlow agent gets to 0.10, but one of its seeds arrives late on 5 of the 50
+tracks. The baseline never does either, because it plans its braking with the train's physics; the
+agent has to learn that from the reward alone.
 
-The GIF shows a flaw worth knowing about. Near 8.8 km the agent brakes almost to a stop before a limit
-drop and then has to pull away again. It still finishes with less fuel than the baseline, but a human
-driver would not do that.
+The track in the GIF is a typical one (28 % saving, on time, no overshoot). The last 1.5 km is the
+weak part of most episodes: the agent switches quickly between brake 1 and low notches while it lines
+up the final limit and the arrival.
 
-### What I tried first
+### How I got here
 
-The table above is the third reward setting. The first one charged −2 per minute late. With it, the
-PyTorch agent reached 26.1 L on the same 50 test tracks (47 % less than the baseline), but it was on
-time on only 84 % of them and went over the limit on 0.54 decisions per trip. It was buying fuel with
-lateness. For the second try I added a flat −1 for every decision over the limit and raised lateness
-to −5 per minute. That training was unstable: validation return reached −9.3 at 100k steps and then
-fell to −31, so I stopped it at 140k. The current setting keeps −5 per minute and drops the flat term.
+I tuned in two passes, about 36 minutes and 47 minutes of CPU training. Every number below comes from
+the same 50 test tracks.
+
+**First pass** (150k steps, one seed, 10 validation tracks, no schedule-slack input, Adam at 5e-4,
+target sync every 1,000 steps):
+
+| Setting | Backend | Fuel saving | On time | Over the limit / trip |
+|---|---|---|---|---|
+| −0.5 per m/s over, −2 per minute late | PyTorch | 47.0 % | 84 % | 0.54 |
+| Same, plus −1 flat per decision over and −5 per minute late | PyTorch | diverged, stopped at 140k | | |
+| −0.5 per m/s over, −5 per minute late | PyTorch | 37.6 % | 62 % | 0.40 |
+| −0.5 per m/s over, −5 per minute late | TensorFlow | 17.5 % | 36 % | 2.28 |
+
+The agents were buying fuel with lateness. They aimed at the late edge of the window and, with 10 s
+decisions, landed past it on 16 % to 64 % of the tracks.
+
+**Second pass** (300k steps, two seeds, 30 validation tracks):
+
+- **Round A**: added the schedule-slack input and the flat −10 for any late arrival, and raised the
+  limit penalty to −2 per m/s. Lateness was fixed in one step: all four runs were on time on 98–100 %
+  of the tracks. But two of the four runs diverged. Their TD loss climbed from about 0.1 to 2 and to 17,
+  and the limit overshoots went up to 3.5 per trip.
+- **Round B**: Adam at 3e-4, target sync every 2,000 steps, −5 per m/s over the limit. Stable, but
+  most runs only started to learn after 200k steps, and on time fell to 54–96 %.
+- **Round C**: back to 5e-4, keeping the slower target sync and the −5. TensorFlow reached the table
+  above. PyTorch was clearly behind (78 % on time).
+- **Round D**: the PyTorch and Keras defaults were not the same. `nn.Linear` starts from Kaiming-uniform
+  weights with non-zero biases, Keras `Dense` from Glorot-uniform with zero biases, and Adam's ε is
+  1e-8 against 1e-7. I matched the PyTorch agent to the Keras defaults and retrained only the PyTorch
+  seeds. Their best validation returns went from −10.5 and −10.8 to −6.9 and −4.0, and on time on the
+  test tracks went from 78 % to 99 %.
+
+I picked the final setting by mean validation return, not by test results. I also considered scaling
+the rewards down, but with Adam that mostly acts like raising the learning rate, which was the wrong
+direction here.
 
 ### Sanity check: CartPole-v1
 
-Same code and loop, 50k steps, lr 1e-3, target sync every 500 steps, 50 test episodes:
+Same code and loop, 50k steps, Adam at 1e-3, target sync every 500 steps, one seed, 50 test episodes:
 
 | | Mean return | Min |
 |---|---|---|
-| PyTorch | 345.4 ± 88.7 | 230 |
+| PyTorch | 304.8 ± 52.5 | 252 |
 | TensorFlow | **500.0** ± 0.0 | 500 |
 
-TensorFlow's best checkpoint holds the pole for the full 500 steps on every episode. PyTorch's training
-return was still climbing at 50k (365 over the last 20 episodes). DQN on CartPole is known to swing a
-lot, and both curves show it.
+TensorFlow's best checkpoint holds the pole for the full 500 steps on every test episode. DQN on
+CartPole swings a lot during training, as both curves show, and a single seed says little about which
+backend is better here.
 
 ### What is next
 
-- Train longer. Both train-task curves were still rising at 150k steps.
-- Use more validation tracks (50 rather than 10), and three seeds per backend.
-- Treat the deadline and the limit as hard constraints rather than soft penalties, for example by
-  masking actions that cannot keep the train under the next limit.
-- Add a terminal stop at the platform, so the arrival is a real stopping problem.
+- Treat the speed limit as a hard constraint: mask the actions that cannot keep the train under the
+  next limit, using the same braking model the baseline uses. That should take the overshoots to zero.
+- Shorter decisions (5 s) near limit changes and at the end of the trip, where the 10 s steps are too
+  coarse.
+- More seeds. Two per backend shows the spread but not a reliable ranking of the frameworks.
+- A terminal stop at the platform, so the arrival is a real stopping problem.
 
 ## PyTorch vs TensorFlow
 
-Same algorithm, same hyperparameters, same loop. Only `ecodrive/agents/torch_dqn.py` and
-`ecodrive/agents/tf_dqn.py` differ, and they have the same methods in the same order.
+Same algorithm, same hyperparameters, same initialisation, same loop. Only
+`ecodrive/agents/torch_dqn.py` and `ecodrive/agents/tf_dqn.py` differ, and they have the same methods
+in the same order.
 
 | | PyTorch | TensorFlow / Keras |
 |---|---|---|
-| Lines of code in the agent (no comments, docstrings or blank lines) | 49 | 52 |
+| Lines of code in the agent (no comments, docstrings or blank lines) | 54 | 52 |
 | Network | `nn.Sequential` of `nn.Linear` + `nn.ReLU` | `keras.Sequential` of `Dense` |
+| Initialisation | set explicitly to Glorot uniform, zero bias | Keras default (Glorot uniform, zero bias) |
 | Q(s, a) of the taken action | `q.gather(1, a.unsqueeze(1))` | `tf.gather(q, a, batch_dims=1)` |
 | Huber loss | `F.smooth_l1_loss` (β = 1) | `keras.losses.Huber(delta=1.0)` |
 | Gradient step | `loss.backward()`, `clip_grad_norm_`, `opt.step()` | `GradientTape`, Adam with `global_clipnorm` |
 | Speed-up | none needed, eager | `@tf.function` on the forward pass and the train step |
 | Target sync | `load_state_dict(state_dict())` | `set_weights(get_weights())` |
-| Wall time, train task, 150k steps | 602 s | 545 s |
-| Wall time, CartPole, 50k steps | 305 s | 249 s |
+| Wall time, train task, 300k steps | 506 s, 511 s | 585 s, 587 s |
+| Wall time, CartPole, 50k steps | 145 s | 249 s |
 
-The wall times are from one 16-thread laptop CPU, with each backend capped at 4 threads and run at
-idle priority. The two backends trained at the same time, and the machine was busy with other work, so
-read them as rough. In a quick run on its own, with nothing else in parallel, TensorFlow was also the
-faster of the two: the compiled train step beats eager PyTorch on a network this small.
+The wall times are rough. Each process was capped at 4 threads on a 16-thread laptop CPU and ran at
+idle priority while other work used the machine. The final TensorFlow runs shared the CPU with three
+other training runs, and the final PyTorch runs with two. On a network this small the per-call overhead
+dominates, not the arithmetic, so neither framework has a clear edge.
 
 Versions: Python 3.13, PyTorch 2.14.1 (CPU), TensorFlow 2.21.0 (CPU) with Keras 3.15.1,
 Gymnasium 1.4.0, NumPy 2.4.6.
@@ -165,24 +195,25 @@ Gymnasium 1.4.0, NumPy 2.4.6.
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt                       # CPU-only wheels
 
-python train.py --backend torch                       # or --backend tf
-python evaluate.py --backend torch                    # DQN vs baseline on 50 test tracks
+python train.py --backend torch --seed 0              # or --backend tf; repeat with --seed 1
+python evaluate.py --backend torch --seeds 0 1        # DQN vs baseline on 50 test tracks
 python train.py --backend tf --env CartPole-v1        # sanity check
 python evaluate.py --backend tf --env CartPole-v1
 python plots.py                                       # learning curves and the GIF
 ```
 
-`train.py` writes weights, a per-episode `log.csv` and `summary.json` to `runs/<env>-<backend>/`.
-`evaluate.py` writes `results/eval_<env>_<backend>.json`. `--threads` sets the CPU threads (default 4).
+`train.py` writes weights, a per-episode `log.csv` and `summary.json` to `runs/<env>-<backend>-s<seed>/`.
+`evaluate.py` writes `results/eval_<env>_<backend>.json`; `--trace-track` picks the test track that
+`plots.py` animates. `--threads` sets the CPU threads (default 4).
 
 ## Tests
 
-`pytest -q` runs 27 tests in under a minute on a laptop CPU. GitHub Actions runs the same suite, with
+`pytest -q` runs 28 tests in under a minute on a laptop CPU. GitHub Actions runs the same suite, with
 both backends, on Python 3.11 (`.github/workflows/tests.yml`).
 
 | File | What it checks |
 |---|---|
-| `tests/test_env.py` | speed never negative; position and fuel never decrease; coasting and braking burn no fuel; more notch, more fuel; resistance slows a coasting train; seeded resets repeat; the baseline is on time; standing still hits the hard stop |
+| `tests/test_env.py` | speed never negative; position and fuel never decrease; coasting and braking burn no fuel; more notch, more fuel; resistance slows a coasting train; seeded resets repeat; free-flow time left shrinks to zero; the baseline is on time; standing still hits the hard stop |
 | `tests/test_replay.py` | the size cap, overwriting the oldest entry, sample shapes and dtypes, rows staying whole, seeded sampling |
 | `tests/test_agents.py` | per backend: the loss equals a numpy Double DQN + Huber reference; one update lowers the loss on its batch; the target network moves only on sync; save and load round-trip |
 | `tests/test_loop.py` | updates start after warm-up, the target syncs on schedule, the ε schedule |

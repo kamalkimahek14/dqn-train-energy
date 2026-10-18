@@ -1,6 +1,27 @@
 {
   "episodes": 50,
-  "return_mean": 500.0,
-  "return_std": 0.0,
-  "return_min": 500.0
+  "per_seed": {
+    "0": {
+      "return_mean": 500.0,
+      "return_std": 0.0,
+      "return_min": 500.0
+    }
+  },
+  "across_seeds": {
+    "return_mean": {
+      "mean": 500.0,
+      "min": 500.0,
+      "max": 500.0
+    },
+    "return_std": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "return_min": {
+      "mean": 500.0,
+      "min": 500.0,
+      "max": 500.0
+    }
+  }
 }

@@ -29,7 +29,7 @@
   <!-- Agent -->
   <rect class="box" x="620" y="66" width="250" height="134" rx="10" stroke="#22d3ee"/>
   <text class="head" x="745" y="92">Agent: online network Q<tspan baseline-shift="sub" font-size="11">θ</tspan></text>
-  <text class="body" x="745" y="116">MLP 10 → 128 → 128 → 12</text>
+  <text class="body" x="745" y="116">MLP 11 → 128 → 128 → 12</text>
   <text class="body" x="745" y="136">ε-greedy: random with prob. ε</text>
   <text class="body" x="745" y="156">else: argmax of the 12 Q-values</text>
   <text class="body" x="745" y="176">ε decays 1.0 → 0.05</text>
@@ -68,7 +68,7 @@
   <rect class="box" x="670" y="266" width="200" height="120" rx="10" stroke="#34d399"/>
   <text class="head" x="770" y="292">Target network Q<tspan baseline-shift="sub" font-size="11">θ⁻</tspan></text>
   <text class="body" x="770" y="316">frozen copy of Q<tspan baseline-shift="sub" font-size="10">θ</tspan></text>
-  <text class="body" x="770" y="336">θ⁻ ← θ every 1,000 steps</text>
+  <text class="body" x="770" y="336">θ⁻ ← θ every 2,000 steps</text>
   <text class="body" x="770" y="356">keeps the target y steady</text>
   <path class="flow" d="M800 200 V262"/>
   <text class="label" x="808" y="236">copy</text>
