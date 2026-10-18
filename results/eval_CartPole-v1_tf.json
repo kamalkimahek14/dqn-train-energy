@@ -1,0 +1,6 @@
+{
+  "episodes": 50,
+  "return_mean": 500.0,
+  "return_std": 0.0,
+  "return_min": 500.0
+}

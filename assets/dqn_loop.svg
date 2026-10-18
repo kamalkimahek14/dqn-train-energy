@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 450" width="900" height="450" role="img" aria-labelledby="title desc">
+  <title id="title">Agent-environment loop and the Double DQN update</title>
+  <desc id="desc">The environment sends the state to the agent, the agent picks a notch or brake level, transitions go to a replay buffer, minibatches feed the Double DQN update of the online network, and the target network is a periodic copy of it.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c9d1d9"/>
+    </marker>
+    <style>
+      .box   { fill: #161b22; stroke-width: 2; }
+      .head  { font: 600 15px "Segoe UI", Helvetica, Arial, sans-serif; fill: #e6edf3; text-anchor: middle; }
+      .body  { font: 13px "Segoe UI", Helvetica, Arial, sans-serif; fill: #c9d1d9; text-anchor: middle; }
+      .math  { font: 13px Consolas, "DejaVu Sans Mono", monospace; fill: #e6edf3; }
+      .label { font: 12px "Segoe UI", Helvetica, Arial, sans-serif; fill: #8b949e; }
+      .flow  { stroke: #c9d1d9; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="898" height="448" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <text x="24" y="36" style="font: 600 17px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #e6edf3;">Agent–environment loop and the Double DQN update</text>
+
+  <!-- Environment -->
+  <rect class="box" x="30" y="66" width="250" height="134" rx="10" stroke="#f59e0b"/>
+  <text class="head" x="155" y="92">Environment (TrainEnv)</text>
+  <text class="body" x="155" y="116">point-mass train on a 1-D track</text>
+  <text class="body" x="155" y="136">random grades and speed limits</text>
+  <text class="body" x="155" y="156">fuel ∝ traction energy</text>
+  <text class="body" x="155" y="176">one decision every 10 s</text>
+
+  <!-- Agent -->
+  <rect class="box" x="620" y="66" width="250" height="134" rx="10" stroke="#22d3ee"/>
+  <text class="head" x="745" y="92">Agent: online network Q<tspan baseline-shift="sub" font-size="11">θ</tspan></text>
+  <text class="body" x="745" y="116">MLP 10 → 128 → 128 → 12</text>
+  <text class="body" x="745" y="136">ε-greedy: random with prob. ε</text>
+  <text class="body" x="745" y="156">else: argmax of the 12 Q-values</text>
+  <text class="body" x="745" y="176">ε decays 1.0 → 0.05</text>
+
+  <!-- Loop arrows between environment and agent -->
+  <path class="flow" d="M280 100 H616"/>
+  <text class="label" x="450" y="92" text-anchor="middle">state s: speed, limits, grades, time left</text>
+  <path class="flow" d="M620 150 H284"/>
+  <text class="label" x="450" y="142" text-anchor="middle">action a: throttle notch 0–8 or brake 1–3</text>
+
+  <!-- Replay buffer -->
+  <rect class="box" x="30" y="266" width="250" height="120" rx="10" stroke="#a78bfa"/>
+  <text class="head" x="155" y="292">Replay buffer</text>
+  <text class="body" x="155" y="316">last 100,000 transitions</text>
+  <text class="body" x="155" y="336">(s, a, r, s′, done)</text>
+  <text class="body" x="155" y="356">uniform minibatch of 64</text>
+  <path class="flow" d="M155 200 V262"/>
+  <text class="label" x="165" y="236">store each step with reward r</text>
+
+  <!-- Double DQN update -->
+  <rect class="box" x="320" y="246" width="280" height="160" rx="10" stroke="#22d3ee" stroke-dasharray="6 4"/>
+  <text class="head" x="460" y="272">Double DQN update</text>
+  <text class="math" x="336" y="300">a* = argmax_a Q<tspan baseline-shift="sub" font-size="10">θ</tspan>(s′, a)</text>
+  <text class="math" x="336" y="324">y  = r + γ(1−done)·Q<tspan baseline-shift="sub" font-size="10">θ⁻</tspan>(s′, a*)</text>
+  <text class="math" x="336" y="348">L  = Huber(Q<tspan baseline-shift="sub" font-size="10">θ</tspan>(s, a) − y)</text>
+  <text class="math" x="336" y="372">θ ← Adam step on L</text>
+  <text class="label" x="336" y="394">online net picks a*, target net scores it</text>
+  <path class="flow" d="M280 326 H316"/>
+  <text class="label" x="298" y="318" text-anchor="middle">batch</text>
+
+  <!-- Online network update arrow -->
+  <path class="flow" d="M560 246 V226 H690 V204"/>
+  <text class="label" x="580" y="219">gradient step on θ</text>
+
+  <!-- Target network -->
+  <rect class="box" x="670" y="266" width="200" height="120" rx="10" stroke="#34d399"/>
+  <text class="head" x="770" y="292">Target network Q<tspan baseline-shift="sub" font-size="11">θ⁻</tspan></text>
+  <text class="body" x="770" y="316">frozen copy of Q<tspan baseline-shift="sub" font-size="10">θ</tspan></text>
+  <text class="body" x="770" y="336">θ⁻ ← θ every 1,000 steps</text>
+  <text class="body" x="770" y="356">keeps the target y steady</text>
+  <path class="flow" d="M800 200 V262"/>
+  <text class="label" x="808" y="236">copy</text>
+  <path class="flow" d="M670 326 H604"/>
+  <text class="label" x="637" y="318" text-anchor="middle">Q<tspan baseline-shift="sub" font-size="9">θ⁻</tspan>(s′,·)</text>
+
+  <text class="label" x="450" y="432" text-anchor="middle">One loop (ecodrive/loop.py) drives both the PyTorch and the TensorFlow agent.</text>
+</svg>

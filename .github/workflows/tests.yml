@@ -1,0 +1,23 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+# Read-only token: this workflow only checks out the code and runs the tests.
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # CPU-only wheels for both backends; the PyTorch and the TensorFlow tests both run here.
+      - run: pip install -r requirements.txt
+      - run: pytest -q
