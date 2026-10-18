@@ -6,6 +6,7 @@
 """
 import argparse
 import csv
+import glob
 import json
 import os
 
@@ -34,29 +35,34 @@ def moving_average(y, k):
 
 
 def learning_curves(runs, results, out):
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.4))
     for ax, env_id, title in zip(axes, ["train", "CartPole-v1"], ["Train driving task", "CartPole-v1 (sanity check)"]):
         for backend in ("torch", "tf"):
-            run = os.path.join(runs, f"{env_id}-{backend}")
-            if not os.path.exists(os.path.join(run, "log.csv")):
-                continue
-            with open(os.path.join(run, "log.csv")) as f:
-                rows = list(csv.DictReader(f))
-            steps = np.array([int(r["step"]) for r in rows])
-            avg, k = moving_average(np.array([float(r["return"]) for r in rows]), 50)
-            ax.plot(steps[k - 1:], avg, color=COLOR[backend], lw=1.6, label=f"{NAME[backend]}: training episodes")
-            with open(os.path.join(run, "summary.json")) as f:
-                evals = json.load(f)["evals"]
-            ax.plot([e["step"] for e in evals], [e["val_return"] for e in evals], "o", ms=4,
-                    color=COLOR[backend], markerfacecolor=PANEL, label=f"{NAME[backend]}: validation (greedy)")
+            for i, run in enumerate(sorted(glob.glob(os.path.join(runs, f"{env_id}-{backend}-s*")))):
+                if not os.path.exists(os.path.join(run, "log.csv")):
+                    continue
+                with open(os.path.join(run, "log.csv")) as f:
+                    rows = list(csv.DictReader(f))
+                steps = np.array([int(r["step"]) for r in rows])
+                avg, k = moving_average(np.array([float(r["return"]) for r in rows]), 50)
+                seed = run.rsplit("-s", 1)[1]
+                # First seed solid, later seeds dashed; validation points only for the first to keep it readable.
+                ax.plot(steps[k - 1:], avg, color=COLOR[backend], lw=1.4, ls="-" if i == 0 else "--",
+                        label=f"{NAME[backend]} seed {seed}: training episodes")
+                if i == 0:
+                    with open(os.path.join(run, "summary.json")) as f:
+                        evals = json.load(f)["evals"]
+                    ax.plot([e["step"] for e in evals], [e["val_return"] for e in evals], "o", ms=3.5,
+                            color=COLOR[backend], markerfacecolor=PANEL,
+                            label=f"{NAME[backend]} seed {seed}: validation (greedy)")
         base = os.path.join(results, "eval_train_torch.json")
         if env_id == "train" and os.path.exists(base):
             with open(base) as f:
-                ax.axhline(json.load(f)["baseline"]["return"]["mean"], ls="--", color=COLOR["baseline"],
+                ax.axhline(json.load(f)["baseline"]["return"]["mean"], ls=":", lw=1.6, color=COLOR["baseline"],
                            label="rule-based baseline")
         ax.set(title=title, xlabel="environment steps", ylabel="episode return")
         ax.grid(alpha=0.6)
-        ax.legend(fontsize=8, loc="lower right")
+        ax.legend(fontsize=7, loc="lower right")
     fig.tight_layout()
     fig.savefig(out, dpi=120)
     print("wrote", out)

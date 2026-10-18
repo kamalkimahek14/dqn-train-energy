@@ -15,7 +15,14 @@ def build_q_net(obs_dim: int, n_actions: int, hidden: tuple) -> nn.Module:
         layers += [nn.Linear(size, h), nn.ReLU()]
         size = h
     layers.append(nn.Linear(size, n_actions))
-    return nn.Sequential(*layers)
+    net = nn.Sequential(*layers)
+    # Start from the same initialisation as Keras Dense (Glorot uniform, zero bias), so the two
+    # backends differ only in framework, not in their defaults.
+    for layer in net:
+        if isinstance(layer, nn.Linear):
+            nn.init.xavier_uniform_(layer.weight)
+            nn.init.zeros_(layer.bias)
+    return net
 
 
 class TorchDQN:
@@ -25,7 +32,7 @@ class TorchDQN:
         self.q = build_q_net(obs_dim, n_actions, cfg.hidden)          # online network, trained
         self.q_target = build_q_net(obs_dim, n_actions, cfg.hidden)   # target network, copied
         self.sync_target()
-        self.opt = torch.optim.Adam(self.q.parameters(), lr=cfg.lr)
+        self.opt = torch.optim.Adam(self.q.parameters(), lr=cfg.lr, eps=1e-7)  # Keras's default epsilon
 
     def q_values(self, obs: np.ndarray) -> np.ndarray:
         with torch.no_grad():

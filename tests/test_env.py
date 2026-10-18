@@ -14,7 +14,7 @@ def env():
 def test_spaces_and_observation(env):
     obs, _ = env.reset(seed=0)
     assert env.action_space.n == N_ACTIONS == 12
-    assert obs.shape == (10,) and obs.dtype == np.float32
+    assert obs.shape == (11,) and obs.dtype == np.float32
     assert env.observation_space.contains(obs)
 
 
@@ -97,3 +97,11 @@ def test_standing_still_hits_the_hard_time_limit(env):
         steps += 1
     assert not info["arrived"] and env.t >= env.t_hard
     assert reward < -10.0                            # the whole track is left: big penalty
+
+
+def test_free_flow_time_left_shrinks_to_zero(env):
+    env.reset(seed=0)
+    tr = env.track
+    assert tr.free_flow_time_from(0.0) == pytest.approx(tr.free_flow_time)
+    times = [tr.free_flow_time_from(x) for x in np.linspace(0, tr.length, 50)]
+    assert all(a >= b for a, b in zip(times, times[1:])) and times[-1] == pytest.approx(0.0)

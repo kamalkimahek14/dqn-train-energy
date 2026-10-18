@@ -4,7 +4,7 @@
     python train.py --backend torch                   # the train-driving task
     python train.py --backend tf --env CartPole-v1    # sanity check on a classic task
 
-Writes runs/<env>-<backend>/: best and final weights, log.csv (one row per episode), summary.json.
+Writes runs/<env>-<backend>-s<seed>/: best and final weights, log.csv (one row per episode), summary.json.
 """
 import argparse
 import csv
@@ -35,7 +35,7 @@ def main():
     env = make_env(cfg.env_id)
     agent = make_agent(args.backend, env.observation_space.shape[0], int(env.action_space.n), cfg)
 
-    out_dir = os.path.join(args.out, f"{args.env}-{args.backend}")
+    out_dir = os.path.join(args.out, f"{args.env}-{args.backend}-s{args.seed}")
     os.makedirs(out_dir, exist_ok=True)
     print(f"training {args.backend} DQN on {args.env} for {cfg.total_steps} steps -> {out_dir}")
     result = train(agent, env, cfg, out_dir=out_dir)

@@ -41,9 +41,10 @@ EARLY, LATE, HARD = 1.05, 1.40, 1.70  # time window and hard stop, as multiples 
 
 # ---- Reward weights --------------------------------------------------------------------------
 W_FUEL = 0.1     # per litre
-W_SPEED = 0.5    # per m/s above the limit (worst excess within the step)
+W_SPEED = 5.0    # per m/s above the limit (worst excess within the step)
 W_JERK = 0.05    # per unit change of the control level u in [-1, 1]
 W_TIME = 5.0     # per minute outside the arrival window
+W_LATE = 10.0    # flat penalty for missing the deadline at all, so 'just a little late' is never worth it
 W_STALL = 10.0   # times the fraction of track left when the hard time limit hits
 
 
@@ -52,12 +53,6 @@ def action_to_control(action: int) -> tuple[float, float]:
     if action <= N_NOTCHES:
         return action / N_NOTCHES, 0.0
     return 0.0, (action - N_NOTCHES) / N_BRAKES
-
-
-def control_level(action: int) -> float:
-    """One number per action: +1 = full throttle, 0 = coast, -1 = full brake. Used for the harshness penalty."""
-    throttle, brake = action_to_control(action)
-    return throttle - brake
 
 
 def tractive_force_available(v: float) -> float:
@@ -85,9 +80,7 @@ class Track:
             return float(v)
 
         self.limit_x, self.limit = self._segments(rng, 1500, 3500, next_limit)
-        # Free-flow time: driving every segment exactly at its limit. A lower bound on the trip time.
-        ends = np.append(self.limit_x[1:], length)
-        self.free_flow_time = float(np.sum((ends - self.limit_x) / self.limit))
+        self.free_flow_time = self.free_flow_time_from(0.0)
 
     def _segments(self, rng, lo, hi, draw):
         starts, values, x = [], [], 0.0
@@ -103,6 +96,12 @@ class Track:
     def limit_at(self, x: float) -> float:
         return float(self.limit[np.searchsorted(self.limit_x, x, side="right") - 1])
 
+    def free_flow_time_from(self, x: float) -> float:
+        """Time to drive from x to the end at exactly the limit everywhere: a lower bound on the time left."""
+        ends = np.append(self.limit_x[1:], self.length)
+        covered = np.clip(ends - np.maximum(self.limit_x, x), 0.0, None)
+        return float(np.sum(covered / self.limit))
+
     def next_limit_change(self, x: float) -> tuple[float, float]:
         """(position, new limit) of the next speed-limit change ahead, or (inf, current limit)."""
         i = np.searchsorted(self.limit_x, x, side="right")
@@ -112,13 +111,13 @@ class Track:
 
 
 class TrainEnv(gym.Env):
-    """Gymnasium environment. Observation: 10 floats. Action: Discrete(12)."""
+    """Gymnasium environment. Observation: 11 floats. Action: Discrete(12)."""
 
     metadata = {"render_modes": []}
 
     def __init__(self):
         self.action_space = spaces.Discrete(N_ACTIONS)
-        self.observation_space = spaces.Box(-2.0, 2.0, shape=(10,), dtype=np.float32)
+        self.observation_space = spaces.Box(-2.0, 2.0, shape=(11,), dtype=np.float32)
         self.track: Track | None = None
 
     # -- Gymnasium API --------------------------------------------------------------------------
@@ -169,11 +168,11 @@ class TrainEnv(gym.Env):
         if arrived:
             terminated = True
             minutes_off = (max(0.0, self.t - self.t_late) + max(0.0, self.t_early - self.t)) / 60.0
-            reward -= W_TIME * minutes_off
+            reward -= W_TIME * minutes_off + W_LATE * (self.t > self.t_late)
         elif self.t >= self.t_hard:
             terminated = True
             remaining = (self.track.length - self.x) / self.track.length
-            reward -= W_STALL * remaining + W_TIME * (self.t - self.t_late) / 60.0
+            reward -= W_STALL * remaining + W_TIME * (self.t - self.t_late) / 60.0 + W_LATE
 
         return self._obs(), float(reward), terminated, False, self._info(arrived)
 
@@ -195,6 +194,9 @@ class TrainEnv(gym.Env):
             remaining / tr.length,
             self.t / self.t_late,
             remaining / time_left / V_NORM,   # average speed still needed to arrive by t_late
+            # Schedule slack: time left before the deadline minus the fastest possible finish.
+            # Below zero the deadline can no longer be met.
+            (self.t_late - self.t - tr.free_flow_time_from(x)) / 300.0,
             self.u_prev,
         ], dtype=np.float32)
         return np.clip(obs, -2.0, 2.0)
