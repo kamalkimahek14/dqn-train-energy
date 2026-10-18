@@ -184,7 +184,7 @@ this coming.
 
 This part mirrors, on synthetic data, the design of a slack predictor used next to a driving-strategy
 model in train control: a supervised sequential network, trained offline, that gives the driving
-model a second opinion and blocks the actions it predicts will cause an over-limit slack event. It is
+model a safety filter that blocks an action predicted to cause a serious slack event. It is
 checked the same way, by running the same train on the same tracks with and without it.
 
 ### The coupled train
