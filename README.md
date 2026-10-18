@@ -11,7 +11,7 @@ tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. The next 
 to make the speed limit a hard constraint; the numbers and the history are below.
 
 A second part puts the same agents on a train of four car groups joined by couplers with slack, and
-adds a supervised [slack predictor](#slack-predictor-second-opinion) that vetoes actions likely to
+adds a supervised [slack predictor](#slack-predictor-a-safety-filter) that vetoes actions likely to
 snatch or run in the slack. On the same 50 test tracks it cut slack events from **2.4 to 0.2 per
 trip** (−91 % to −93 %) and the mean peak coupler force from 388 to about 285 kN, for 0.4–0.5 % more
 fuel and 3 points less on-time arrival.
