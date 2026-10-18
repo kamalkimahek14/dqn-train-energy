@@ -1,7 +1,7 @@
 # Train eco-driving with Deep Q-Networks
 
 A Double DQN agent drives a simulated 1,000 t train over a 10 km track. It has to arrive inside a
-time window, stay under the speed limit and burn as little fuel as it can. I wrote the agent twice,
+time window, stay under the speed limit and burn as little fuel as it can. The agent is implemented twice,
 once in PyTorch and once in TensorFlow/Keras. Both sit on the same environment, replay buffer,
 config and training loop, so the two files can be read side by side.
 
@@ -102,9 +102,9 @@ The track in the GIF is a typical one (28 % saving, on time, no overshoot). The 
 weak part of most episodes: the agent switches quickly between brake 1 and low notches while it lines
 up the final limit and the arrival.
 
-### How I got here
+### How the results developed
 
-I tuned in two passes, about 36 minutes and 47 minutes of CPU training. Every number below comes from
+Tuning took two passes, about 36 minutes and 47 minutes of CPU training. Every number below comes from
 the same 50 test tracks.
 
 **First pass** (150k steps, one seed, 10 validation tracks, no schedule-slack input, Adam at 5e-4,
@@ -132,13 +132,13 @@ decisions, landed past it on 16 % to 64 % of the tracks.
   above. PyTorch was clearly behind (78 % on time).
 - **Round D**: the PyTorch and Keras defaults were not the same. `nn.Linear` starts from Kaiming-uniform
   weights with non-zero biases, Keras `Dense` from Glorot-uniform with zero biases, and Adam's ε is
-  1e-8 against 1e-7. I matched the PyTorch agent to the Keras defaults and retrained only the PyTorch
-  seeds. Their best validation returns went from −10.5 and −10.8 to −6.9 and −4.0, and on time on the
+  1e-8 against 1e-7. Matching the PyTorch agent to the Keras defaults and retraining only the PyTorch
+  seeds fixed it: their best validation returns went from −10.5 and −10.8 to −6.9 and −4.0, and on time on the
   test tracks went from 78 % to 99 %.
 
-I picked the final setting by mean validation return, not by test results. I also considered scaling
-the rewards down, but with Adam that mostly acts like raising the learning rate, which was the wrong
-direction here.
+The final setting was picked by mean validation return, not by test results. Scaling
+the rewards down was left out: with Adam it mostly acts like raising the learning rate, which was the
+wrong direction here.
 
 ### Sanity check: CartPole-v1
 
