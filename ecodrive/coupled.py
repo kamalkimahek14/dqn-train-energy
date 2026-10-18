@@ -36,19 +36,37 @@ WINDOW = 4               # decisions of history the slack predictor sees
 N_FEATURES = 17          # per decision, see slack_features()
 
 
-def coupler_force(d: np.ndarray, dd: np.ndarray) -> np.ndarray:
+def coupler_force(d: np.ndarray, dd: np.ndarray, k: float = K_COUPLER, c: float = C_COUPLER,
+                  gap: float = GAP) -> np.ndarray:
     """Force in each coupler (+ draft, - buff) from its stretch d (m) and stretch rate dd (m/s)."""
-    spring = np.where(d > GAP, d - GAP, np.where(d < -GAP, d + GAP, 0.0))
-    f = np.where(spring != 0.0, K_COUPLER * spring + C_COUPLER * dd, 0.0)
+    spring = np.where(d > gap, d - gap, np.where(d < -gap, d + gap, 0.0))
+    f = np.where(spring != 0.0, k * spring + c * dd, 0.0)
     # A damper cannot push a stretched coupler into buff (or the reverse) while it separates.
     return np.where(spring > 0, np.maximum(f, 0.0), np.where(spring < 0, np.minimum(f, 0.0), 0.0))
 
 
 class CoupledTrainEnv(TrainEnv):
-    """TrainEnv with N_GROUPS masses and slack couplers. Adds coupler forces and slack events to info."""
+    """TrainEnv with N_GROUPS masses and slack couplers. Adds coupler forces and slack events to info.
+
+    Every argument is opt-in and defaults to the train above, so CoupledTrainEnv() is the published model.
+    head_units and mid_units are locomotive units, each with the TrainEnv tractive-force curve, on the lead
+    group and on the middle group (N_GROUPS // 2). track, if given, is a fixed section used on every reset.
+    The brake force scales with group_mass, so every train has the same braking ratio. timetable stretches
+    the arrival window and the hard stop, for a train slower than the reference one.
+    """
+
+    def __init__(self, group_mass: float = GROUP_MASS, group_length: float = GROUP_LENGTH, k: float = K_COUPLER,
+                 c: float = C_COUPLER, gap: float = GAP, head_units: float = 1.0, mid_units: float = 0.0,
+                 track=None, timetable: float = 1.0):
+        super().__init__()
+        self.group_mass, self.group_length, self.k, self.c, self.gap = group_mass, group_length, k, c, gap
+        self.head_units, self.mid_units, self.fixed_track, self.timetable = head_units, mid_units, track, timetable
+
+    def _new_track(self):
+        return self.fixed_track if self.fixed_track is not None else super()._new_track()
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
-        self.s = -GROUP_LENGTH * np.arange(N_GROUPS)       # group positions on the track, lead at 0
+        self.s = -self.group_length * np.arange(N_GROUPS)  # group positions on the track, lead at 0
         self.vg = np.zeros(N_GROUPS)                        # group speeds
         self.brake_cmd = deque([0.0] * (BRAKE_DELAY * (N_GROUPS - 1) + 1), maxlen=BRAKE_DELAY * (N_GROUPS - 1) + 1)
         self.force = np.zeros(N_GROUPS - 1)                 # coupler forces now, + draft / - buff
@@ -57,6 +75,10 @@ class CoupledTrainEnv(TrainEnv):
         self.peak_draft = self.peak_buff = 0.0
         self.force_trace = []                               # per 1 s substep: (t, x, peak draft, peak buff)
         obs, info = super().reset(seed=seed, options=options)
+        if self.timetable != 1.0:
+            self.t_early, self.t_late, self.t_hard = (self.timetable * t
+                                                      for t in (self.t_early, self.t_late, self.t_hard))
+            obs = self._obs()
         self.history = deque([self._features()] * WINDOW, maxlen=WINDOW)
         return obs, self._info()
 
@@ -82,28 +104,32 @@ class CoupledTrainEnv(TrainEnv):
         return out
 
     def _integrate(self, throttle: float, brake: float) -> tuple[float, float, bool]:
-        tr, m = self.track, GROUP_MASS
+        tr, m = self.track, self.group_mass
+        brake_ratio, mid = m / GROUP_MASS, N_GROUPS // 2
         a, b, c = DAVIS
         n_inner = round(DT / SUBSTEPS / H)
         fuel_step, over = 0.0, 0.0
         s, v = self.s, self.vg
         for _ in range(SUBSTEPS):
             self.brake_cmd.appendleft(brake)
-            brakes = np.array([self.brake_cmd[i * BRAKE_DELAY] for i in range(N_GROUPS)]) * B_MAX / N_GROUPS
+            brakes = (np.array([self.brake_cmd[i * BRAKE_DELAY] for i in range(N_GROUPS)]) * B_MAX / N_GROUPS
+                      * brake_ratio)
             # Grades change every 600 m or more, so a lookup once per second is enough.
             gravity = m * G * np.array([tr.grade_at(max(p, 0.0)) for p in s])
             sub_draft = np.zeros(N_GROUPS - 1)
             sub_buff = np.zeros(N_GROUPS - 1)
             for _ in range(n_inner):
                 f_trac = throttle * tractive_force_available(v[0])
-                f = coupler_force(s[:-1] - s[1:] - GROUP_LENGTH, v[:-1] - v[1:])
+                f = coupler_force(s[:-1] - s[1:] - self.group_length, v[:-1] - v[1:], self.k, self.c, self.gap)
                 net = -brakes - (a + b * v + c * v * v) / N_GROUPS - gravity
-                net[0] += f_trac
+                net[0] += f_trac * self.head_units
+                net[mid] += f_trac * self.mid_units
                 net[:-1] -= f
                 net[1:] += f
                 v_new = np.maximum(v + net / m * H, 0.0)                # a stopped group does not roll back
                 v_avg = 0.5 * (v + v_new)
-                fuel_step += SFC * f_trac * v_avg[0] * H / 3.6e6
+                v_loco = self.head_units * v_avg[0] + self.mid_units * v_avg[mid]  # unit-weighted locomotive speed
+                fuel_step += SFC * f_trac * v_loco * H / 3.6e6
                 s = s + v_avg * H
                 v = v_new
                 sub_draft = np.maximum(sub_draft, f)
@@ -125,13 +151,13 @@ class CoupledTrainEnv(TrainEnv):
         x = min(self.x, tr.length - 1e-6)
         rear = max(float(self.s[-1]), 0.0)
         ahead = np.mean([tr.grade_at(min(x + d, tr.length - 1e-6)) for d in (200, 400, 600, 800, 1000)])
-        d = self.s[:-1] - self.s[1:] - GROUP_LENGTH
+        d = self.s[:-1] - self.s[1:] - self.group_length
         return np.concatenate([
             [self.v / V_NORM, tr.limit_at(x) / V_NORM, tr.grade_at(x) * 100, tr.grade_at(rear) * 100,
              ahead * 100, self.u_prev],
             self.force / F_REF,                    # coupler forces now
             [self.step_draft / F_REF, self.step_buff / F_REF],  # peaks over the last decision
-            d / GAP,                               # where each coupler sits in its slack
+            d / self.gap,                          # where each coupler sits in its slack
             (self.vg[:-1] - self.vg[1:]),          # closing speed of each coupler, m/s
         ]).astype(np.float32)
 

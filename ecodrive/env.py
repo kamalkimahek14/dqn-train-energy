@@ -123,7 +123,7 @@ class TrainEnv(gym.Env):
     # -- Gymnasium API --------------------------------------------------------------------------
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)          # seeds self.np_random
-        self.track = Track(self.np_random)
+        self.track = self._new_track()
         self.x, self.v, self.t = 0.0, 0.0, 0.0
         self.fuel = 0.0                   # litres used so far
         self.u_prev = 0.0                 # previous control level, for the harshness penalty
@@ -161,6 +161,10 @@ class TrainEnv(gym.Env):
         return self._obs(), float(reward), terminated, False, self._info(arrived)
 
     # -- Helpers --------------------------------------------------------------------------------
+    def _new_track(self) -> Track:
+        """A random track from the seeded stream; a subclass can return a fixed section instead."""
+        return Track(self.np_random)
+
     def _advance(self, throttle: float, brake: float) -> tuple[float, float, bool]:
         """Integrate one decision step at 1 s. Returns (fuel used, worst excess over the limit, arrived)."""
         dt = DT / SUBSTEPS
