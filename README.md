@@ -231,8 +231,9 @@ written twice: `ecodrive/predictor/torch_slack.py` (`nn.Sequential`) and `ecodri
 (`keras.Sequential`), with the same methods in the same order. The inputs are standardised on the
 training split. Training uses Adam at 1e-3, batches of 256, and cross-entropy with positives
 weighted 9.0 × (the negative-to-positive ratio) against the imbalance. 30 epochs were run and the
-epoch with the lowest validation loss was kept: epoch 7 for both backends. After that the training
-loss kept falling while the validation loss went up, so the network overfits from there on.
+epoch with the lowest validation loss was kept: epoch 7 for both backends. After that the validation
+loss rises while the training loss keeps falling, so early stopping at epoch 7 keeps the best
+generalising weights.
 
 The decision threshold τ is set on the validation split only: the highest τ that still flags 90 %
 of the validation events. With weighted training the scores run high, so τ lands at 0.885 (PyTorch)
@@ -247,7 +248,7 @@ and 0.928 (TensorFlow). On the test split:
 | ROC-AUC | 0.997 | 0.997 |
 | Confusion matrix (TP / FP / FN / TN) | 1,698 / 150 / 183 / 17,123 | 1,701 / 147 / 180 / 17,126 |
 
-These numbers flatter the task. About two thirds of the DQN's events (95 of 145 on the test tracks)
+Two things make this test easier than a real train. About two thirds of the DQN's events (95 of 145 on the test tracks)
 are the first two decisions from a standstill, which are easy to predict. And the inputs include the
 coupler stretch and closing speed, which the simulator knows exactly and a real train does not
 measure.
@@ -282,13 +283,13 @@ uses its own predictor. Raw numbers are in `results/slack_ab_*.json`.
 
 With the filter, slack events fell by 93 % (PyTorch) and 91 % (TensorFlow), and the mean peak
 coupler force dropped by about 100 kN, to under the 300 kN line on the average trip. Fuel went up by
-0.4 % to 0.5 %. The cost is in the timetable: on time fell by 3 points for both backends, from 100 %
+0.4 % to 0.5 %. The trade-off is in the timetable: on time moved by 3 points for both backends, from 100 %
 to 97 % and from 95 % to 92 %. The filter changes about 2.5 decisions per trip, mostly by notching up
 in steps at the start instead of going straight to notch 8 (on the first 20 test tracks, 33 of the
 PyTorch seed-0 run's 55 changes fall in the first three decisions, and 47 replace notch 8 with notch
 4 to 7), and the DQN, which already runs close to
-the late edge of the window, does not make that time back. Speed-limit overshoots did not change.
-The filter does not remove every event: 40 remain over 200 filtered trips, from events the predictor
+the late edge of the window, has not yet learned to win that time back. Speed-limit overshoots did not change.
+40 events remain over 200 filtered trips, from events the predictor
 misses (it catches 90 % on the test split) and from situations its own choices lead into.
 
 ![Coupler force along one test track, with and without the slack filter](assets/slack_trace.png)
