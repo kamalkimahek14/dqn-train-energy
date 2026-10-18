@@ -4,9 +4,11 @@
     python slack_predictor.py data                        # roll out six policies, label every decision
     python slack_predictor.py train --backend torch       # or --backend tf
     python slack_predictor.py ab --backend torch --seeds 0 1   # DQN without vs with the filter, 50 test tracks
+    python slack_predictor.py scenarios --backend torch   # the same A/B on 18 named scenarios, DQN seed 0
 
 `data` writes runs/slack-data.npz, `train` writes runs/slack-<backend>/ and results/slack_predictor_<backend>.json,
-`ab` writes results/slack_ab_<backend>.json and one recorded test track (results/slack_trace_<backend>.json).
+`ab` writes results/slack_ab_<backend>.json and one recorded test track (results/slack_trace_<backend>.json),
+`scenarios` writes results/slack_scenarios_<backend>.json.
 Every track is seeded, so the same tracks and the same seeds go into every arm of the A/B.
 """
 import argparse
@@ -170,9 +172,43 @@ def cmd_ab(args):
         json.dump(record, f)
 
 
+def cmd_scenarios(args):
+    from ecodrive.scenarios import SCENARIOS
+    from ecodrive.slack import SlackFilter, load_predictor
+
+    with open(os.path.join(args.results, f"slack_predictor_{args.backend}.json")) as f:
+        threshold = json.load(f)["threshold"]
+    predictor = load_predictor(args.backend, args.runs)
+    seed = args.seeds[0]
+    agent = load_dqn(args.backend, seed, args.runs)
+    keys = ("draft_events", "buff_events", "peak_force_kn", "fuel_l", "time_s", "on_time", "violation_steps")
+    rows = []
+    for sc in SCENARIOS:
+        env = sc.make_env()
+        filt = SlackFilter(agent, predictor, env, threshold)
+        row = {"name": sc.name, "train": sc.train, "power": sc.power, "section": sc.section, "grade": sc.grade}
+        for arm, policy in (("dqn", agent.greedy), ("dqn_filter", filt.greedy)):
+            m, _ = trip(env, policy, 0)  # the section is fixed, so the reset seed changes nothing
+            row[arm] = {k: m[k] for k in keys} | {"arrived": env.x >= env.track.length,
+                                                  "distance_m": min(env.x, env.track.length),
+                                                  "window_s": [env.t_early, env.t_late]}
+        row["dqn_filter"]["overrides"] = filt.overrides
+        rows.append(row)
+        a, b = row["dqn"], row["dqn_filter"]
+        print(f"{sc.name:<44} events {a['draft_events']}+{a['buff_events']} -> {b['draft_events']}+{b['buff_events']}"
+              f"  peak {a['peak_force_kn']:.0f} -> {b['peak_force_kn']:.0f} kN"
+              f"  fuel {a['fuel_l']:.1f} -> {b['fuel_l']:.1f} L  time {a['time_s']:.0f} -> {b['time_s']:.0f} s"
+              f"  km {a['distance_m'] / 1e3:.1f} -> {b['distance_m'] / 1e3:.1f}  overrides {b['overrides']}")
+    total = {arm: sum(r[arm]["draft_events"] + r[arm]["buff_events"] for r in rows) for arm in ("dqn", "dqn_filter")}
+    print(f"slack events over {len(rows)} scenarios: {total['dqn']} without the filter, {total['dqn_filter']} with it")
+    with open(os.path.join(args.results, f"slack_scenarios_{args.backend}.json"), "w") as f:
+        json.dump({"backend": args.backend, "training_seed": seed, "threshold": threshold, "scenarios": rows,
+                   "total_events": total}, f, indent=2)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("step", choices=["data", "train", "ab"])
+    p.add_argument("step", choices=["data", "train", "ab", "scenarios"])
     p.add_argument("--backend", choices=["torch", "tf"], default="torch")
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1], help="DQN training seeds for the A/B")
     p.add_argument("--seed", type=int, default=0, help="predictor initialisation and shuffling seed")
@@ -189,7 +225,7 @@ def main():
     from ecodrive.agents import limit_threads
     limit_threads("torch" if args.step == "data" else args.backend, args.threads)
     os.makedirs(args.results, exist_ok=True)
-    {"data": cmd_data, "train": cmd_train, "ab": cmd_ab}[args.step](args)
+    {"data": cmd_data, "train": cmd_train, "ab": cmd_ab, "scenarios": cmd_scenarios}[args.step](args)
 
 
 if __name__ == "__main__":

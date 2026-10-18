@@ -201,6 +201,37 @@ def slack_events(results, out):
     print("wrote", out)
 
 
+def slack_scenarios(results, out):
+    """Slack events per named scenario, DQN seed 0 without and with the filter, one panel per backend."""
+    runs = {}
+    for backend in ("torch", "tf"):
+        path = os.path.join(results, f"slack_scenarios_{backend}.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                runs[backend] = json.load(f)["scenarios"]
+    names = [r["name"] for r in next(iter(runs.values()))]
+    y = np.arange(len(names))[::-1]
+    fig, axes = plt.subplots(1, len(runs), figsize=(4.2 + 3.4 * len(runs), 0.32 * len(names) + 1.4),
+                             sharey=True, squeeze=False)
+    for ax, (backend, rows) in zip(axes[0], runs.items()):
+        total = []
+        for k, (key, label) in enumerate((("dqn", "DQN"), ("dqn_filter", "DQN + slack filter"))):
+            ev = [r[key]["draft_events"] + r[key]["buff_events"] for r in rows]
+            ax.barh(y + 0.2 - 0.4 * k, ev, height=0.38, color=SLACK[key], label=label, edgecolor=PANEL, linewidth=0.6)
+            total.append(sum(ev))
+        ax.set(xlabel="slack events on the trip")
+        ax.set_title(f"{NAME[backend]} DQN, seed 0: {total[0]} events, {total[1]} with the filter", fontsize=9)
+        ax.set_xticks(range(0, 1 + max(r["dqn"]["draft_events"] + r["dqn"]["buff_events"] for r in rows)))
+        ax.grid(axis="x", alpha=0.6)
+        ax.set_axisbelow(True)
+    axes[0][0].set_yticks(y, names, fontsize=8)
+    fig.suptitle("Named scenarios: decisions with a coupler past 300 kN, one trip each", fontsize=10, x=0.01, ha="left")
+    fig.legend(*axes[0][0].get_legend_handles_labels(), fontsize=8, loc="upper right", ncol=2, frameon=False)
+    fig.tight_layout()
+    fig.savefig(out, dpi=120)
+    print("wrote", out)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--backend", choices=["torch", "tf"], default="torch")
@@ -215,6 +246,7 @@ def main():
         slack_trace(os.path.join(args.results, f"slack_trace_{args.backend}.json"),
                     os.path.join(args.assets, "slack_trace.png"))
         slack_events(args.results, os.path.join(args.assets, "slack_events.png"))
+        slack_scenarios(args.results, os.path.join(args.assets, "slack_scenarios.png"))
         return
     learning_curves(args.runs, args.results, os.path.join(args.assets, "learning_curves.png"))
     rollout = os.path.join(args.results, f"rollout_{args.backend}.json")

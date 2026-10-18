@@ -1,0 +1,695 @@
+{
+  "backend": "tf",
+  "training_seed": 0,
+  "threshold": 0.928421676158905,
+  "scenarios": [
+    {
+      "name": "heavy unit, head-end, hard start",
+      "train": "heavy unit",
+      "power": "head-end",
+      "section": "hard start",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 421.764808155604,
+        "fuel_l": 70.22949820219905,
+        "time_s": 405.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          325.5525,
+          434.07
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 294.06917188072083,
+        "fuel_l": 69.20782179914053,
+        "time_s": 411.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          325.5525,
+          434.07
+        ],
+        "overrides": 1
+      }
+    },
+    {
+      "name": "heavy unit, head-end, crest then sag",
+      "train": "heavy unit",
+      "power": "head-end",
+      "section": "crest then sag",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 3,
+        "buff_events": 2,
+        "peak_force_kn": 459.7734103245026,
+        "fuel_l": 54.70496885699337,
+        "time_s": 376.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          368.55,
+          491.40000000000003
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 2,
+        "peak_force_kn": 375.0419326040521,
+        "fuel_l": 53.92089527584344,
+        "time_s": 385.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          368.55,
+          491.40000000000003
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "heavy unit, head-end, brake and release",
+      "train": "heavy unit",
+      "power": "head-end",
+      "section": "brake and release",
+      "grade": 0.002,
+      "dqn": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 459.7734103245026,
+        "fuel_l": 46.17055589648794,
+        "time_s": 394.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          314.496,
+          419.3279999999999
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 279.03302720964757,
+        "fuel_l": 46.069693126284044,
+        "time_s": 400.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          314.496,
+          419.3279999999999
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "heavy unit, head + mid, hard start",
+      "train": "heavy unit",
+      "power": "head + mid",
+      "section": "hard start",
+      "grade": 0.004,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 335.50705188661163,
+        "fuel_l": 62.5805086080392,
+        "time_s": 382.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          325.5525,
+          434.07
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 206.83452629756775,
+        "fuel_l": 62.28801167664933,
+        "time_s": 391.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          325.5525,
+          434.07
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "heavy unit, head + mid, crest then sag",
+      "train": "heavy unit",
+      "power": "head + mid",
+      "section": "crest then sag",
+      "grade": 0.013,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 1,
+        "peak_force_kn": 337.7046422522544,
+        "fuel_l": 67.58945484942825,
+        "time_s": 390.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          368.55,
+          491.40000000000003
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 219.1896970568006,
+        "fuel_l": 64.47655749824227,
+        "time_s": 399.0,
+        "on_time": 1.0,
+        "violation_steps": 5,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          368.55,
+          491.40000000000003
+        ],
+        "overrides": 4
+      }
+    },
+    {
+      "name": "heavy unit, head + mid, brake and release",
+      "train": "heavy unit",
+      "power": "head + mid",
+      "section": "brake and release",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 337.7046422522544,
+        "fuel_l": 44.61599690964825,
+        "time_s": 396.0,
+        "on_time": 1.0,
+        "violation_steps": 3,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          314.496,
+          419.3279999999999
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 1,
+        "buff_events": 1,
+        "peak_force_kn": 316.71533987636207,
+        "fuel_l": 48.44118361298864,
+        "time_s": 401.0,
+        "on_time": 1.0,
+        "violation_steps": 1,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          314.496,
+          419.3279999999999
+        ],
+        "overrides": 3
+      }
+    },
+    {
+      "name": "light mixed, head-end, hard start",
+      "train": "light mixed",
+      "power": "head-end",
+      "section": "hard start",
+      "grade": 0.004,
+      "dqn": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 448.8155599862865,
+        "fuel_l": 25.279980434532213,
+        "time_s": 300.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          275.46750000000003,
+          367.29
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 277.38644256360595,
+        "fuel_l": 25.6877919245812,
+        "time_s": 307.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          275.46750000000003,
+          367.29
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "light mixed, head-end, crest then sag",
+      "train": "light mixed",
+      "power": "head-end",
+      "section": "crest then sag",
+      "grade": 0.005,
+      "dqn": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 457.63414872077993,
+        "fuel_l": 24.41878934320751,
+        "time_s": 324.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          311.85,
+          415.8
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 331.9476010481885,
+        "fuel_l": 23.596852625441283,
+        "time_s": 328.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          311.85,
+          415.8
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "light mixed, head-end, brake and release",
+      "train": "light mixed",
+      "power": "head-end",
+      "section": "brake and release",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 3,
+        "buff_events": 0,
+        "peak_force_kn": 457.63414872077993,
+        "fuel_l": 26.636367186089192,
+        "time_s": 325.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          266.112,
+          354.816
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 305.55498158595003,
+        "fuel_l": 26.491393627456134,
+        "time_s": 331.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          266.112,
+          354.816
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "light mixed, head + mid, hard start",
+      "train": "light mixed",
+      "power": "head + mid",
+      "section": "hard start",
+      "grade": 0.007,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 351.41019476040316,
+        "fuel_l": 28.307161380521652,
+        "time_s": 301.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          275.46750000000003,
+          367.29
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 205.06188568327798,
+        "fuel_l": 28.6759674390765,
+        "time_s": 312.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          275.46750000000003,
+          367.29
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "light mixed, head + mid, crest then sag",
+      "train": "light mixed",
+      "power": "head + mid",
+      "section": "crest then sag",
+      "grade": 0.005,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 325.343428840261,
+        "fuel_l": 24.40908695035038,
+        "time_s": 324.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          311.85,
+          415.8
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 215.66855659410692,
+        "fuel_l": 23.589086021186397,
+        "time_s": 328.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          311.85,
+          415.8
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "light mixed, head + mid, brake and release",
+      "train": "light mixed",
+      "power": "head + mid",
+      "section": "brake and release",
+      "grade": 0.009,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 325.343428840261,
+        "fuel_l": 26.939780054409503,
+        "time_s": 329.0,
+        "on_time": 1.0,
+        "violation_steps": 1,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          266.112,
+          354.816
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 222.63727954765426,
+        "fuel_l": 28.48957476600624,
+        "time_s": 326.0,
+        "on_time": 1.0,
+        "violation_steps": 1,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          266.112,
+          354.816
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "long, head-end, hard start",
+      "train": "long",
+      "power": "head-end",
+      "section": "hard start",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 2,
+        "buff_events": 0,
+        "peak_force_kn": 402.43881350306356,
+        "fuel_l": 54.85130487749081,
+        "time_s": 367.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          300.51,
+          400.67999999999995
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 282.116700275962,
+        "fuel_l": 54.98298633407774,
+        "time_s": 376.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          300.51,
+          400.67999999999995
+        ],
+        "overrides": 3
+      }
+    },
+    {
+      "name": "long, head-end, crest then sag",
+      "train": "long",
+      "power": "head-end",
+      "section": "crest then sag",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 3,
+        "buff_events": 1,
+        "peak_force_kn": 431.25697719701907,
+        "fuel_l": 42.18571820459515,
+        "time_s": 356.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          340.2,
+          453.59999999999997
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 1,
+        "buff_events": 1,
+        "peak_force_kn": 413.6067600654976,
+        "fuel_l": 47.87259417098766,
+        "time_s": 362.0,
+        "on_time": 1.0,
+        "violation_steps": 3,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          340.2,
+          453.59999999999997
+        ],
+        "overrides": 3
+      }
+    },
+    {
+      "name": "long, head-end, brake and release",
+      "train": "long",
+      "power": "head-end",
+      "section": "brake and release",
+      "grade": 0.005,
+      "dqn": {
+        "draft_events": 3,
+        "buff_events": 0,
+        "peak_force_kn": 431.25697719701907,
+        "fuel_l": 40.21142197445215,
+        "time_s": 367.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          290.304,
+          387.07199999999995
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 1,
+        "buff_events": 1,
+        "peak_force_kn": 317.4074937153039,
+        "fuel_l": 45.18158109413971,
+        "time_s": 372.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          290.304,
+          387.07199999999995
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "long, head + mid, hard start",
+      "train": "long",
+      "power": "head + mid",
+      "section": "hard start",
+      "grade": 0.001,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 306.6383752307567,
+        "fuel_l": 42.437668566822374,
+        "time_s": 336.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          300.51,
+          400.67999999999995
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 185.972702445733,
+        "fuel_l": 42.760635050067684,
+        "time_s": 341.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          300.51,
+          400.67999999999995
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "long, head + mid, crest then sag",
+      "train": "long",
+      "power": "head + mid",
+      "section": "crest then sag",
+      "grade": 0.006,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 1,
+        "peak_force_kn": 307.7942449841101,
+        "fuel_l": 42.318531949282914,
+        "time_s": 355.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          340.2,
+          453.59999999999997
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 0,
+        "peak_force_kn": 284.15905763513933,
+        "fuel_l": 40.41472307231268,
+        "time_s": 358.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          340.2,
+          453.59999999999997
+        ],
+        "overrides": 2
+      }
+    },
+    {
+      "name": "long, head + mid, brake and release",
+      "train": "long",
+      "power": "head + mid",
+      "section": "brake and release",
+      "grade": 0.005,
+      "dqn": {
+        "draft_events": 1,
+        "buff_events": 0,
+        "peak_force_kn": 307.7942449841101,
+        "fuel_l": 40.20041515256866,
+        "time_s": 367.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          290.304,
+          387.07199999999995
+        ]
+      },
+      "dqn_filter": {
+        "draft_events": 0,
+        "buff_events": 1,
+        "peak_force_kn": 311.94385585783414,
+        "fuel_l": 45.17151026738441,
+        "time_s": 372.0,
+        "on_time": 1.0,
+        "violation_steps": 0,
+        "arrived": true,
+        "distance_m": 6000.0,
+        "window_s": [
+          290.304,
+          387.07199999999995
+        ],
+        "overrides": 2
+      }
+    }
+  ],
+  "total_events": {
+    "dqn": 36,
+    "dqn_filter": 12
+  }
+}

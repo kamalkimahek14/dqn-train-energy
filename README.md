@@ -14,7 +14,9 @@ A second part puts the same agents on a train of four car groups joined by coupl
 adds a supervised [slack predictor](#slack-predictor-a-safety-filter) that vetoes actions likely to
 snatch or run in the slack. On the same 50 test tracks it cut slack events from **2.4 to 0.2 per
 trip** (−91 % to −93 %) and the mean peak coupler force from 388 to about 285 kN, for 0.4–0.5 % more
-fuel and 3 points less on-time arrival.
+fuel and 3 points less on-time arrival. On 18 named scenarios (three train types, head-end and
+mid-train power, three operating moves) it cut slack events from 35 to 12 (PyTorch) and from 36 to 12
+(TensorFlow).
 
 ![One test episode: speed against the limit, and the throttle notch per decision](assets/episode.gif)
 
@@ -302,6 +304,95 @@ the start and one at 9.4 km, where it notches up right after releasing the brake
 
 ![Slack events per trip, with and without the filter](assets/slack_events.png)
 
+### Scenario A/B
+
+All data here is synthetic too, from this repo's simulator; none of it comes from any employer.
+
+The A/B above runs on random tracks. This one follows the way a slack predictor is validated in a
+lab: named scenarios, each a train type, a power setup and a short track section with one operating
+move, run once without the filter and once with it. `ecodrive/scenarios.py` defines 18 of them: every
+train type with both power setups on all three sections.
+
+| Train type (all values invented) | Mass | Length | Coupler k, c | Free slack | Traction | Timetable |
+|---|---|---|---|---|---|---|
+| Heavy unit | 4 × 500 t | 800 m | 3.0 MN/m, 260 kN·s/m | ±5 cm | 1.1 units, 330 kN | 1.3 × |
+| Light mixed | 4 × 150 t | 800 m | 1.5 MN/m, 100 kN·s/m | ±10 cm | 1 unit, 300 kN | 1.1 × |
+| Long | 4 × 375 t | 1.4 km | 1.2 MN/m, 140 kN·s/m | ±12 cm | 1.1 units, 330 kN | 1.2 × |
+
+- **Power setups.** *Head-end*: all the traction on the lead group. *Head + mid*: two thirds on the
+  lead group and one third on the third group, like a mid-train locomotive.
+- **Timetable.** The arrival window and the hard stop are 1.1 to 1.3 times the reference train's, so
+  the heavier and longer trains have a schedule they can keep.
+- **Sections**, 6 km each, with one grade g. *Hard start*: a standing start on a g upgrade for 2 km,
+  then level, at 80 then 100 km/h. *Crest then sag*: up g to a crest at 2.5 km, down g into a sag at
+  3.7 km, up g again, at 80 km/h. *Brake and release*: down g with the limit dropping from 100 to 60 km/h
+  at 3 km, then up g from 3.5 km with the limit back at 100 km/h from 3.6 km.
+- **Calibration.** Each section's grade was set on the plain PyTorch DQN only, never with the filter:
+  from 0.1 % to 1.5 % in 0.1 % steps, the grade whose trip arrives with a slack-event count nearest
+  2. That gives 2 events in 15 of the 18 scenarios, 3 in one and 1 in two. The TensorFlow DQN drives
+  the same scenarios without a calibration of its own, so its counts spread from 1 to 5.
+- **Model changes, all opt-in.** `CoupledTrainEnv` takes the group mass and spacing, the coupler k,
+  c and slack, the head and mid traction, a fixed track and a timetable stretch as arguments. With no
+  arguments it is the train above, and `slack_predictor.py ab` reproduces `results/slack_ab_torch.json`
+  byte for byte. Each train's damper keeps the damping ratio near the reference train's 0.15, which
+  also keeps the 0.1 s integration stable; `tests/test_scenarios.py` checks that for every train. The
+  group count stays at 4 because the predictor's inputs are sized for 3 couplers, and the predictor is
+  the one trained above, on the reference train only.
+
+Every scenario, DQN seed 0, without → with the slack filter. PyTorch in full, the TensorFlow event
+counts in the last column. Raw numbers are in `results/slack_scenarios_*.json`.
+
+| # | Train | Power | Section | Grade | Draft + buff events | Peak coupler force (kN) | Fuel (L) | Arrival (s) | TensorFlow: events |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | heavy unit | head-end | hard start | 0.6 % | 2 + 0 → 0 + 0 | 422 → 294 | 68.9 → 70.6 | 398 → 407 | 2 → 0 |
+| 2 | heavy unit | head-end | crest then sag | 0.6 % | 2 + 0 → 1 + 0 | 460 → 306 | 51.0 → 51.5 | 370 → 375 | 5 → 2 |
+| 3 | heavy unit | head-end | brake and release | 0.2 % | 3 + 0 → 2 + 1 | 492 → 383 | 58.1 → 52.6 | 385 → 391 | 2 → 0 |
+| 4 | heavy unit | head + mid | hard start | 0.4 % | 1 + 1 → 0 + 0 | 356 → 207 | 66.1 → 61.9 | 399 → 384 | 1 → 0 |
+| 5 | heavy unit | head + mid | crest then sag | 1.3 % | 1 + 1 → 0 + 0 | 338 → 278 | 61.6 → 64.1 | 398 → 395 | 2 → 0 |
+| 6 | heavy unit | head + mid | brake and release | 0.6 % | 2 + 0 → 0 + 0 | 348 → 246 | 58.2 → 56.5 | 389 → 392 | 1 → 2 |
+| 7 | light mixed | head-end | hard start | 0.4 % | 2 + 0 → 1 + 0 | 449 → 350 | 27.9 → 26.7 | 291 → 302 | 2 → 0 |
+| 8 | light mixed | head-end | crest then sag | 0.5 % | 2 + 0 → 1 + 0 | 458 → 314 | 22.1 → 23.1 | 311 → 317 | 2 → 2 |
+| 9 | light mixed | head-end | brake and release | 0.6 % | 2 + 0 → 0 + 0 | 353 → 296 | 29.3 → 28.5 | 342 → 351 | 3 → 1 |
+| 10 | light mixed | head + mid | hard start | 0.7 % | 2 + 0 → 0 + 0 | 357 → 262 | 30.0 → 29.3 | 297 → 305 | 1 → 0 |
+| 11 | light mixed | head + mid | crest then sag | 0.5 % | 1 + 0 → 0 + 0 | 325 → 216 | 23.4 → 22.3 | 312 → 317 | 1 → 0 |
+| 12 | light mixed | head + mid | brake and release | 0.9 % | 2 + 0 → 0 + 0 | 325 → 208 | 29.3 → 30.2 | 344 → 347 | 1 → 0 |
+| 13 | long | head-end | hard start | 0.6 % | 2 + 0 → 1 + 0 | 402 → 307 | 54.0 → 53.7 | 351 → 360 | 2 → 0 |
+| 14 | long | head-end | crest then sag | 0.6 % | 2 + 0 → 1 + 0 | 431 → 331 | 39.9 → 36.7 | 344 → 347 | 4 → 2 |
+| 15 | long | head-end | brake and release | 0.5 % | 1 + 1 → 1 + 1 | 358 → 358 | 50.2 → 50.2 | 368 → 368 | 3 → 2 |
+| 16 | long | head + mid | hard start | 0.1 % | 2 + 0 → 0 + 0 | 336 → 272 | 47.4 → 47.1 | 333 → 339 | 1 → 0 |
+| 17 | long | head + mid | crest then sag | 0.6 % | 1 + 0 → 0 + 0 | 308 → 266 | 39.9 → 42.7 | 343 → 353 | 2 → 0 |
+| 18 | long | head + mid | brake and release | 0.5 % | 1 + 1 → 1 + 1 | 346 → 346 | 50.2 → 50.2 | 368 → 368 | 1 → 1 |
+
+| 18 scenarios, one trip each | DQN, PyTorch | + slack filter | DQN, TensorFlow | + slack filter |
+|---|---|---|---|---|
+| Slack events, draft + buff | 35 (31 + 4) | **12** (9 + 3) | 36 (31 + 5) | **12** (6 + 6) |
+| Scenarios with any event | 18 of 18 | 8 of 18 | 18 of 18 | 7 of 18 |
+| Peak coupler force per trip, mean (kN) | 381 | **291** | 384 | **280** |
+| Highest peak on any trip (kN) | 492 | 383 | 460 | 414 |
+| Fuel, all 18 trips (L) | 807.7 | 798.0 | 764.1 | 777.3 |
+| Arrival time, mean (s) | 352.4 | 356.6 | 355.2 | 361.1 |
+| Arrived inside the window | 17 of 18 | 18 of 18 | 18 of 18 | 18 of 18 |
+| Decisions over the speed limit, all trips | 17 | 26 | 4 | 10 |
+| Decisions the filter changed, all trips | | 29 | | 40 |
+
+![Slack events per named scenario, with and without the filter](assets/slack_scenarios.png)
+
+On train types and power setups it never saw in training, the filter cut slack events by about two
+thirds on both backends (35 to 12 and 36 to 12) and brought the mean peak coupler force down by 90 kN
+(PyTorch) and 104 kN (TensorFlow). Every trip still arrived inside its window, about 4 to 6 s later on
+average, and fuel moved by −1.2 % (PyTorch) and +1.7 % (TensorFlow).
+
+- **Head + mid is where the filter does best.** With PyTorch it cleared every event in 8 of the 9
+  head + mid scenarios. A mid locomotive already takes much of the pull off the front couplers.
+- **Head-end trains keep a few events:** one each on the hard starts and crests of scenarios 2, 7, 8,
+  13 and 14, and three on the heavy train's brake and release. With all the traction at the head, the
+  first coupler carries the most and has the least margin.
+- **Scenarios 15 and 18,** the long train braking and releasing, show the predictor's edge: the filter
+  changed no decision there, so its risk score stayed under τ for the events on the long train's
+  softer, looser couplers. These two are the first place to add training data from other train types.
+- **Speed-limit overshoots rose,** from 17 to 26 decisions (PyTorch) and from 4 to 10 (TensorFlow) over
+  the 18 trips. A filter that also guards the limit is on the list below.
+
 ### What is next for the predictor
 
 - Inputs a real train has: locomotive speed and drawbar force, an end-of-train speed, the track
@@ -311,6 +402,8 @@ the start and one at 9.4 km, where it notches up right after releasing the brake
   earlier is out of its reach.
 - Train the DQN with the filter in the loop, or give it the slack risk in its reward, so it plans its
   time around the gentler starts and wins back the 3 points of on-time arrival.
+- Training data from more train types and power setups, starting with the long train braking and
+  releasing (scenarios 15 and 18 above), and the speed limit as a second thing the filter guards.
 - More car groups and a nonlinear draft gear. Four lumped groups are enough to show run-in and
   run-out, not to put numbers on a real train.
 
@@ -356,6 +449,7 @@ python plots.py                                       # learning curves and the 
 python slack_predictor.py data                        # coupled train: six policies on 300 tracks, labelled
 python slack_predictor.py train --backend torch       # or --backend tf
 python slack_predictor.py ab --backend torch          # DQN without vs with the filter, 50 test tracks
+python slack_predictor.py scenarios --backend torch   # the same A/B on 18 named scenarios, DQN seed 0
 python plots.py --slack                               # the slack figures
 ```
 
@@ -365,11 +459,12 @@ python plots.py --slack                               # the slack figures
 `slack_predictor.py` needs the trained DQN weights in `runs/`. It writes the dataset to
 `runs/slack-data.npz`, the predictor to `runs/slack-<backend>/` and the numbers to
 `results/slack_*.json`. At 4 threads the dataset took 14 minutes, training under a minute per
-backend, and the A/B about 2 minutes per backend.
+backend, the A/B about 2 minutes per backend, and the scenario A/B 20 s (PyTorch) and 1 minute
+(TensorFlow).
 
 ## Tests
 
-`pytest -q` runs 43 tests in about a minute on a laptop CPU. GitHub Actions runs the same suite, with
+`pytest -q` runs 68 tests in about a minute on a laptop CPU. GitHub Actions runs the same suite, with
 both backends, on Python 3.11 (`.github/workflows/tests.yml`).
 
 | File | What it checks |
@@ -380,6 +475,7 @@ both backends, on Python 3.11 (`.github/workflows/tests.yml`).
 | `tests/test_loop.py` | updates start after warm-up, the target syncs on schedule, the ε schedule |
 | `tests/test_smoke.py` | 400 real training steps per backend on both tasks, each well under 60 s |
 | `tests/test_coupled.py` | the deadband passes no force inside the slack; spring and sign beyond it; couplers only move momentum between groups; a steady pull splits 3/4, 2/4, 1/4; the coupled trip matches the point mass within 5 %; full notch from a standstill is an event |
+| `tests/test_scenarios.py` | 10 to 20 uniquely named scenarios covering every train, power setup and section; each one builds and runs one step; a fixed section ignores the seed; head + mid traction splits the pull 5/12, 2/12, 3/12; every train's coupler integration is stable |
 | `tests/test_slack.py` | the three splits share no track; the input layout; the filter respects τ and never comes back empty; ROC-AUC, the confusion matrix and the threshold rule; per backend: forward-pass shapes and the weighted loss against numpy; a 2-trip smoke run of data, training and a filtered trip |
 
 ## Layout
@@ -392,6 +488,7 @@ ecodrive/
   config.py         hyperparameters (shared), env factory, epsilon schedule
   loop.py           training loop (shared)
   coupled.py        opt-in coupled train: car groups, couplers with slack, slack events
+  scenarios.py      named slack scenarios: train types, power setups, fixed track sections
   slack.py          slack predictor inputs, dataset, training loop, metrics, SlackFilter (shared)
   agents/
     torch_dqn.py    Double DQN in PyTorch
@@ -401,7 +498,7 @@ ecodrive/
     tf_slack.py     slack predictor in TensorFlow/Keras
 train.py            train one backend on one task
 evaluate.py         DQN vs baseline on test tracks
-slack_predictor.py  slack dataset, predictor training, and the A/B with and without the filter
+slack_predictor.py  slack dataset, predictor training, the A/B with and without the filter, the scenarios
 plots.py            learning curves, the episode GIF, and the slack figures
 results/            evaluation numbers and the recorded test episodes
 assets/             README figures
