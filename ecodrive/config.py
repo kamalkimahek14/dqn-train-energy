@@ -39,6 +39,8 @@ PRESETS = {
 # model selection uses VALIDATION_SEED + i, and evaluate.py reports on TEST_SEED + i.
 VALIDATION_SEED = 1_000
 TEST_SEED = 10_000
+# The slack predictor's training tracks; its validation and test tracks reuse the two ranges above.
+SLACK_TRAIN_SEED = 20_000
 
 
 def get_config(env_id: str, **overrides) -> DQNConfig:
