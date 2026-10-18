@@ -5,7 +5,7 @@ time window, stay under the speed limit and burn as little fuel as it can. The a
 once in PyTorch and once in TensorFlow/Keras. Both sit on the same environment, replay buffer,
 config and training loop, so the two files can be read side by side.
 
-On 50 held-out test tracks, averaged over two training seeds, the PyTorch agent used **31.5 % less
+On 50 test tracks, averaged over two training seeds, the PyTorch agent used **31.5 % less
 fuel** than a rule-based driver that holds the speed limit and arrived on time on **99 %** of the
 tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. The next step is
 to make the speed limit a hard constraint; the numbers and the history are below.
@@ -111,7 +111,8 @@ up the final limit and the arrival.
 ### How the results developed
 
 Tuning took two passes, about 36 minutes and 47 minutes of CPU training. Every number below comes from
-the same 50 test tracks.
+the same 50 test tracks. Settings were chosen on validation return, but these test-track numbers were also
+read between rounds, so the tracks are not untouched; a fresh seed range would give a clean held-out test.
 
 **First pass** (150k steps, one seed, 10 validation tracks, no schedule-slack input, Adam at 5e-4,
 target sync every 1,000 steps):
