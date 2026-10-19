@@ -7,7 +7,7 @@ config and training loop, so the two files can be read side by side.
 
 On 50 test tracks, averaged over two training seeds, the PyTorch agent used **31.5 % less
 fuel** than a rule-based driver that holds the speed limit and arrived on time on **99 %** of the
-tracks. The TensorFlow agent saved 24.8 % and arrived on time on 95 %. The next step is
+tracks (the 50 test tracks were also read between tuning rounds; see below). The TensorFlow agent saved 24.8 % and arrived on time on 95 %. The next step is
 to make the speed limit a hard constraint; the numbers and the history are below.
 
 A second part puts the same agents on a train of four car groups joined by couplers with slack, and
@@ -183,7 +183,7 @@ large force through a coupler. A driving policy that only sees speed, grades and
 this coming.
 
 This part mirrors, on synthetic data, the design of a slack predictor used next to a driving-strategy
-model in train control: a supervised sequential network, trained offline, that gives the driving
+model in train control: a small fully connected network, trained offline, that gives the driving
 model a safety filter that blocks an action predicted to cause a serious slack event. It is
 checked the same way, by running the same train on the same tracks with and without it.
 
